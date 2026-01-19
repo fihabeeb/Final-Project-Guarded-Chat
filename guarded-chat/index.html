@@ -1,0 +1,653 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Guarded Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: #111b21;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .app-container {
+        display: flex;
+        height: 100vh;
+        background: #111b21;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        width: 350px;
+        background: #111b21;
+        border-right: 1px solid #2a2f32;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sidebar-header {
+        background: #202c33;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 60px;
+      }
+
+      .sidebar-header h2 {
+        color: #e9edef;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .sidebar-content {
+        flex: 1;
+        overflow-y: auto;
+        background: #111b21;
+      }
+
+      .contact-item {
+        padding: 15px;
+        border-bottom: 1px solid #2a2f32;
+        cursor: pointer;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .contact-item:hover {
+        background: #202c33;
+      }
+
+      .contact-item.active {
+        background: #2a3942;
+      }
+
+      .contact-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: #00a884;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #111b21;
+        font-weight: 600;
+        font-size: 18px;
+      }
+
+      .contact-info {
+        flex: 1;
+      }
+
+      .contact-name {
+        color: #e9edef;
+        font-size: 16px;
+        margin-bottom: 2px;
+      }
+
+      .contact-status {
+        color: #8696a0;
+        font-size: 13px;
+      }
+
+      /* Main Chat Area */
+      .chat-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #0b141a;
+      }
+
+      .chat-header {
+        background: #202c33;
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 60px;
+        border-bottom: 1px solid #2a2f32;
+      }
+
+      .chat-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .chat-header-right {
+        display: flex;
+        gap: 20px;
+      }
+
+      .chat-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #00a884;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #111b21;
+        font-weight: 600;
+      }
+
+      .chat-info h3 {
+        color: #e9edef;
+        font-size: 16px;
+        font-weight: 400;
+      }
+
+      .chat-info p {
+        color: #8696a0;
+        font-size: 13px;
+        margin-top: 2px;
+      }
+
+      .icon-button {
+        background: none;
+        border: none;
+        color: #8696a0;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+      }
+
+      .icon-button:hover {
+        background: #2a3942;
+      }
+
+      .icon-button svg {
+        width: 24px;
+        height: 24px;
+        fill: currentColor;
+      }
+
+      /* Messages Area */
+      .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background-image:
+          linear-gradient(rgba(11, 20, 26, 0.85), rgba(11, 20, 26, 0.85)),
+          url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23202c33" width="100" height="100"/><path d="M0 0L50 50L0 100L50 50L100 100L100 0L50 50L100 0Z" fill="%231a252d" opacity="0.1"/></svg>');
+      }
+
+      #messages {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      #messages li {
+        max-width: 65%;
+        padding: 8px 12px;
+        border-radius: 8px;
+        word-wrap: break-word;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .message-self {
+        background: #005c4b;
+        align-self: flex-end;
+        margin-left: auto;
+        border-radius: 8px 0 8px 8px;
+      }
+
+      .message-peer,
+      .message-server {
+        background: #202c33;
+        align-self: flex-start;
+        border-radius: 0 8px 8px 8px;
+      }
+
+      .message-system {
+        background: #182229;
+        align-self: center;
+        text-align: center;
+        font-size: 13px;
+        padding: 6px 12px;
+        max-width: 80%;
+        border-radius: 8px;
+      }
+
+      .message-sender {
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 4px;
+        color: #00a884;
+      }
+
+      .message-self .message-sender {
+        color: #d1f4cc;
+      }
+
+      .message-text {
+        color: #e9edef;
+        font-size: 14.5px;
+        line-height: 1.4;
+      }
+
+      .message-system .message-text {
+        color: #8696a0;
+      }
+
+      .message-time {
+        font-size: 11px;
+        color: #8696a0;
+        align-self: flex-end;
+        margin-top: 4px;
+      }
+
+      .message-self .message-time {
+        color: #a0c6bc;
+      }
+
+      /* Input Area */
+      .input-container {
+        background: #202c33;
+        padding: 10px 16px;
+        border-top: 1px solid #2a2f32;
+      }
+
+      #form {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .input-wrapper {
+        flex: 1;
+        background: #2a3942;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+      }
+
+      #input {
+        flex: 1;
+        background: none;
+        border: none;
+        color: #e9edef;
+        padding: 10px;
+        font-size: 15px;
+        outline: none;
+      }
+
+      #input::placeholder {
+        color: #8696a0;
+      }
+
+      .send-button {
+        background: #00a884;
+        border: none;
+        color: #111b21;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+      }
+
+      .send-button:hover {
+        background: #06cf9c;
+      }
+
+      /* Video Call Modal */
+      .video-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 1000;
+        display: none;
+        flex-direction: column;
+      }
+
+      .video-modal.active {
+        display: flex;
+      }
+
+      .video-modal-header {
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(32, 44, 51, 0.9);
+      }
+
+      .video-modal-title {
+        color: #e9edef;
+        font-size: 18px;
+      }
+
+      .video-modal-content {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        padding: 20px;
+      }
+
+      .video-main {
+        width: 100%;
+        height: 100%;
+        max-width: 1200px;
+        max-height: 800px;
+        position: relative;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      #remoteVideo {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #000;
+      }
+
+      .video-pip {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        width: 200px;
+        height: 150px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid #00a884;
+        background: #000;
+      }
+
+      #webcamVideo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .video-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 15px;
+        padding: 15px 20px;
+        background: rgba(32, 44, 51, 0.95);
+        border-radius: 50px;
+      }
+
+      .control-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        background: #374955;
+        color: #e9edef;
+      }
+
+      .control-btn:hover {
+        background: #495f6e;
+      }
+
+      .control-btn.danger {
+        background: #f15c6d;
+        color: white;
+      }
+
+      .control-btn.danger:hover {
+        background: #d94452;
+      }
+
+      /* Call Setup Modal */
+      .call-setup-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .call-setup-modal.active {
+        display: flex;
+      }
+
+      .call-setup-content {
+        background: #202c33;
+        padding: 30px;
+        border-radius: 12px;
+        max-width: 400px;
+        width: 90%;
+      }
+
+      .call-setup-content h3 {
+        color: #e9edef;
+        margin-bottom: 20px;
+        font-size: 20px;
+      }
+
+      .call-setup-content input {
+        width: 100%;
+        padding: 12px;
+        background: #2a3942;
+        border: 1px solid #374955;
+        border-radius: 8px;
+        color: #e9edef;
+        font-size: 15px;
+        margin-bottom: 15px;
+      }
+
+      .call-setup-content input:focus {
+        outline: none;
+        border-color: #00a884;
+      }
+
+      .call-setup-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 15px;
+        transition: all 0.2s;
+      }
+
+      .btn-secondary {
+        background: #374955;
+        color: #e9edef;
+      }
+
+      .btn-secondary:hover {
+        background: #495f6e;
+      }
+
+      .btn-primary {
+        background: #00a884;
+        color: #111b21;
+        font-weight: 500;
+      }
+
+      .btn-primary:hover {
+        background: #06cf9c;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .sidebar {
+          width: 100%;
+          position: absolute;
+          z-index: 100;
+          display: none;
+        }
+
+        .sidebar.active {
+          display: flex;
+        }
+
+        .video-pip {
+          width: 120px;
+          height: 90px;
+          bottom: 100px;
+          right: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <h2>Guarded Chat</h2>
+        </div>
+        <div class="sidebar-content">
+          <div class="contact-item active" data-contact="peer">
+            <div class="contact-avatar">P</div>
+            <div class="contact-info">
+              <div class="contact-name">Peer</div>
+              <div class="contact-status">Click to start chatting</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Chat -->
+      <div class="chat-container">
+        <div class="chat-header">
+          <div class="chat-header-left">
+            <div class="chat-avatar">P</div>
+            <div class="chat-info">
+              <h3>Peer</h3>
+              <p id="connectionStatus">offline</p>
+            </div>
+          </div>
+          <div class="chat-header-right">
+            <button class="icon-button" id="videoCallButton" title="Video call">
+              <svg viewBox="0 0 24 24">
+                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+              </svg>
+            </button>
+            <button class="icon-button" id="joinCallButton" title="Join call">
+              <svg viewBox="0 0 24 24">
+                <path d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="messages-container">
+          <ul id="messages"></ul>
+        </div>
+
+        <div class="input-container">
+          <form id="form">
+            <div class="input-wrapper">
+              <input id="input" type="text" placeholder="Type a message" autocomplete="off" />
+            </div>
+            <button type="submit" class="send-button">
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                <path fill="currentColor" d="M1.101 21.757 23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Video Call Modal -->
+    <div class="video-modal" id="videoModal">
+      <div class="video-modal-header">
+        <div class="video-modal-title">Video Call</div>
+        <button class="icon-button" id="closeVideoButton">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="video-modal-content">
+        <div class="video-main">
+          <video id="remoteVideo" autoplay playsinline></video>
+          <div class="video-pip">
+            <video id="webcamVideo" autoplay playsinline muted></video>
+          </div>
+          <div class="video-controls">
+            <button class="control-btn" id="toggleMicButton" title="Mute">
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                <path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                <path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+              </svg>
+            </button>
+            <button class="control-btn" id="toggleCameraButton" title="Turn off camera">
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                <path fill="currentColor" d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+              </svg>
+            </button>
+            <button class="control-btn danger" id="hangupButton" title="End call">
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                <path fill="currentColor" d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.68-1.36-2.66-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Call Setup Modal -->
+    <div class="call-setup-modal" id="callSetupModal">
+      <div class="call-setup-content">
+        <h3 id="callSetupTitle">Join Call</h3>
+        <input type="text" id="callInput" placeholder="Enter call ID">
+        <div id="callIdDisplay" style="display: none; color: #00a884; margin-bottom: 15px; font-size: 14px;"></div>
+        <div class="call-setup-actions">
+          <button class="btn btn-secondary" id="cancelCallSetup">Cancel</button>
+          <button class="btn btn-primary" id="confirmCallSetup">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <button id="webcamButton" style="display: none;"></button>
+    <button id="callButton" style="display: none;"></button>
+    <button id="answerButton" style="display: none;"></button>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
