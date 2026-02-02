@@ -1,7 +1,17 @@
-import firebase, { initializeApp } from 'firebase/app';
+//import firebase, { initializeApp } from 'firebase/app';
+import { initializeApp } from 'firebase/app';
 import 'firebase/firestore'
-
+/*
+const webcamButton = document.getElementById('webcamButton');
+const webcamVideo = document.getElementById('webcamVideo');
+const callButton = document.getElementById('callButton');
+const callInput = document.getElementById('callInput');
+const answerButton = document.getElementById('answerButton');
+const remoteVideo = document.getElementById('remoteVideo');
+const hangupButton = document.getElementById('hangupButton');
+*/
 // Your web app's Firebase configuration
+
 const firebaseConfig = {
   apiKey: "AIzaSyDv4OQTWK783SbRAPZpYWPCXz-7KTgyozE",
   authDomain: "webrtc-tutorial-d268b.firebaseapp.com",
@@ -11,9 +21,8 @@ const firebaseConfig = {
   appId: "1:188157419481:web:a302d6fa4fed7f64aa03c8"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const firestore = app.firestore();
+//const firestore = app.firestore();
 
 const servers = {
   iceServers: [
@@ -27,24 +36,42 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
-let peerConnection = new RTCPeerConnection(servers);
 //my webcam
 let localStream = null;
 // their webcam
 let remoteStream = null;
 
 
-const webcamButton = document.getElementById('webcamButton');
-const webcamVideo = document.getElementById('webcamVideo');
-const callButton = document.getElementById('callButton');
-const callInput = document.getElementById('callInput');
-const answerButton = document.getElementById('answerButton');
-const remoteVideo = document.getElementById('remoteVideo');
-const hangupButton = document.getElementById('hangupButton');
 
+// Initialize Firebase
+function createPeerConnection(isOfferer) {
+  peerConnection = new RTCPeerConnection(servers);
 
-webcamButton.onclick = async () => {
-  localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+  // Only the offerer creates the data channel
+  // The answerer receives it via ondatachannel event
+  if (isOfferer) {
+    dataChannel = peerConnection.createDataChannel('chat');
+    setupDataChannel(dataChannel);
+  }
+
+  // Handle incoming data channel (for the answerer)
+  peerConnection.ondatachannel = (event) => {
+    dataChannel = event.channel;
+    setupDataChannel(dataChannel);
+  };
+
+  // Handle incoming tracks (video/audio)
+  peerConnection.ontrack = event => {
+    event.streams[0].getTracks().forEach(track => {
+      remoteStream.addTrack(track);
+    });
+  };
+
+  return peerConnection;
+}
+
+async function startVideoStream() {
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
   remoteStream = new MediaStream();
 
   localStream.getTracks().forEach((track) => {
@@ -59,12 +86,19 @@ webcamButton.onclick = async () => {
 
   webcamVideo.srcObject = localStream;
   remoteVideo.srcObject = localStream;
-};
+}
+
+
+/*call the above function within this one
+  to get the video stream to start,
+  or within a similair "webcam clicking thingy"
+webcamButton.onclick = async () => {
+
+};*/
 
 
 //create an offer
-
-callButton.onclick = async () => {
+async function createOffer() {
   console.log("Flip")
   const callDoc = firestore.collection('calls').doc();
   const offerCandidates = callDoc.collection('offerCandidates');
@@ -85,7 +119,7 @@ callButton.onclick = async () => {
     type: offerDescription.type,
   };
 
-  await callDoc.set ({offer});
+  await callDoc.set({ offer });
 
   //listen for answer from other user
   callDoc.onSnapshot((snapshot) => {
@@ -100,19 +134,24 @@ callButton.onclick = async () => {
     }
   });
 
-    answerCandidates.onSnapshot(snapshot => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const candidate = new RTCIceCandidate(change.doc.data());
-          peerConnection.addIceCandidate(candidate);
-        }
-      });
+  answerCandidates.onSnapshot(snapshot => {
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === 'added') {
+        const candidate = new RTCIceCandidate(change.doc.data());
+        peerConnection.addIceCandidate(candidate);
+      }
     });
+  });
+}
+/*Same here
+callButton.onclick = async () => {
+
 };
+*/
 
 // answer the call with the unique id
 
-answerButton.onclick = async () => {
+async function answerCall() {
   const callid = callInput.value;
   const callDoc = firestore.collection('calls').doc(callId);
   const answerCandidates = callDoc.collection('answerCandidates');
@@ -142,3 +181,9 @@ answerButton.onclick = async () => {
     })
   })
 }
+/*Same Here
+answerButton.onclick = async () => {
+
+}*/
+
+export { createPeerConnection};

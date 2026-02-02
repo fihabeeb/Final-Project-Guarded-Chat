@@ -21,7 +21,7 @@ let peerConnection = null;
 let localStream = null;
 let remoteStream = null;
 let dataChannel = null;
-let currentCallId = null;
+let peerConnectionID = 555;
 let isMuted = false;
 let isCameraOff = false;
 let isInCall = false;
@@ -74,6 +74,7 @@ function updateConnectionStatus(status) {
 }
 
 // Initialize peer connection
+// isOfferer: true if this client is creating the call, false if joining
 function createPeerConnection() {
   peerConnection = new RTCPeerConnection(servers);
 
@@ -122,11 +123,13 @@ function addMessage(sender, text, type = 'default') {
   item.className = `message-${type}`;
 
   if (type === 'system') {
+    // idk what this does tbh
     const textSpan = document.createElement("span");
     textSpan.className = "message-text";
     textSpan.textContent = text;
     item.appendChild(textSpan);
   } else {
+    // puts the name at the top of the message
     if (sender && type !== 'self') {
       const senderSpan = document.createElement("span");
       senderSpan.className = "message-sender";
@@ -134,11 +137,13 @@ function addMessage(sender, text, type = 'default') {
       item.appendChild(senderSpan);
     }
 
+    // shows the message
     const textSpan = document.createElement("span");
     textSpan.className = "message-text";
     textSpan.textContent = text;
     item.appendChild(textSpan);
 
+    //shows the time
     const timeSpan = document.createElement("span");
     timeSpan.className = "message-time";
     const now = new Date();
@@ -153,7 +158,7 @@ function addMessage(sender, text, type = 'default') {
 // Start webcam
 async function startWebcam() {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     remoteStream = new MediaStream();
 
     webcamVideo.srcObject = localStream;
@@ -184,8 +189,8 @@ videoCallButton.onclick = async () => {
   }
 
   // Generate unique call ID
-  currentCallId = Math.random().toString(36).substring(7);
-  callIdDisplay.textContent = `Call ID: ${currentCallId}\nShare this ID with the person you want to call`;
+  //peerConnectionID = Math.random().toString(36).substring(7);
+  callIdDisplay.textContent = `Call ID: ${peerConnectionID}\nShare this ID with the person you want to call`;
 };
 
 // Join Call Button
@@ -204,60 +209,84 @@ cancelCallSetup.onclick = () => {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
   }
-  currentCallId = null;
+  //peerConnectionID = null;
 };
+let isVideo = false;
+async function offerPeerConnection() {
+  try {
+    createPeerConnection();
 
+    // Add local tracks
+    if (isVideo) {
+      localStream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, localStream);
+      });
+    }
+
+    // Create offer
+    const offerDescription = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offerDescription);
+
+    // Send offer via Socket.io
+    socket.emit('webrtc-offer', {
+      callId: peerConnectionID,
+      offer: {
+        sdp: offerDescription.sdp,
+        type: offerDescription.type,
+      }
+    });
+
+    addMessage('System', `Call created. ID: ${peerConnectionID}`, 'system');
+
+    // Handle ICE candidates
+    peerConnection.onicecandidate = event => {
+      if (event.candidate) {
+        socket.emit('webrtc-ice-candidate', {
+          callId: peerConnectionID,
+          candidate: event.candidate.toJSON(),
+          type: 'offer'
+        });
+      }
+    };
+  } catch (error) {
+    console.error('Error creating call:', error);
+    addMessage('System', 'Error creating call: ' + error.message, 'system');
+  }
+}
+
+async function recievePeerConnection() {
+  try {
+    createPeerConnection();
+
+    // Add local tracks
+    if (isVideo) {
+      localStream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, localStream);
+      });
+    }
+
+    // Request the offer
+    socket.emit('webrtc-get-offer', { callId: peerConnectionID });
+
+  } catch (error) {
+    console.error('Error answering call:', error);
+    addMessage('System', 'Error answering call: ' + error.message, 'system');
+  }
+}
 // Confirm call setup
 confirmCallSetup.onclick = async () => {
   const isCreatingCall = callInput.style.display === 'none';
 
   if (isCreatingCall) {
-    // Create call
-    try {
-      createPeerConnection();
-
-      // Add local tracks
-      localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, localStream);
-      });
-
-      // Create offer
-      const offerDescription = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offerDescription);
-
-      // Send offer via Socket.io
-      socket.emit('webrtc-offer', {
-        callId: currentCallId,
-        offer: {
-          sdp: offerDescription.sdp,
-          type: offerDescription.type,
-        }
-      });
-
-      addMessage('System', `Call created. ID: ${currentCallId}`, 'system');
-
-      // Handle ICE candidates
-      peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-          socket.emit('webrtc-ice-candidate', {
-            callId: currentCallId,
-            candidate: event.candidate.toJSON(),
-            type: 'offer'
-          });
-        }
-      };
-
-      isInCall = true;
-      callSetupModal.classList.remove('active');
-      videoModal.classList.add('active');
-    } catch (error) {
-      console.error('Error creating call:', error);
-      addMessage('System', 'Error creating call: ' + error.message, 'system');
-    }
-  } else {
+    offerPeerConnection();
+    isInCall = true;
+    callSetupModal.classList.remove('active');
+    videoModal.classList.add('active');
+  }
+  else {
     // Join call
-    currentCallId = callInput.value.trim();
-    if (!currentCallId) {
+    peerConnectionID = callInput.value.trim();
+    if (!peerConnectionID) {
       addMessage('System', 'Please enter a call ID', 'system');
       return;
     }
@@ -267,25 +296,10 @@ confirmCallSetup.onclick = async () => {
       callSetupModal.classList.remove('active');
       return;
     }
-
-    try {
-      createPeerConnection();
-
-      // Add local tracks
-      localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, localStream);
-      });
-
-      // Request the offer
-      socket.emit('webrtc-get-offer', { callId: currentCallId });
-
-      isInCall = true;
-      callSetupModal.classList.remove('active');
-      videoModal.classList.add('active');
-    } catch (error) {
-      console.error('Error answering call:', error);
-      addMessage('System', 'Error answering call: ' + error.message, 'system');
-    }
+    recievePeerConnection();
+    isInCall = true;
+    callSetupModal.classList.remove('active');
+    videoModal.classList.add('active');
   }
 };
 
@@ -316,8 +330,10 @@ toggleCameraButton.onclick = () => {
 };
 
 // Hangup or close video
+// Note that this kills the peer connection
+// Peer cnnection isnt used for chatting yet
 const endCall = () => {
-  if (peerConnection) {
+  /*if (peerConnection) {
     peerConnection.close();
     peerConnection = null;
   }
@@ -325,7 +341,7 @@ const endCall = () => {
   if (dataChannel) {
     dataChannel.close();
     dataChannel = null;
-  }
+  }*/
 
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
@@ -335,7 +351,7 @@ const endCall = () => {
   remoteVideo.srcObject = null;
   localStream = null;
   remoteStream = null;
-  currentCallId = null;
+  //peerConnectionID = null;
   isInCall = false;
   isMuted = false;
   isCameraOff = false;
@@ -348,7 +364,6 @@ const endCall = () => {
 hangupButton.onclick = endCall;
 closeVideoButton.onclick = endCall;
 
-// Socket.io WebRTC signaling handlers
 socket.on('webrtc-offer', async (data) => {
   console.log('Received offer:', data);
 });
@@ -380,18 +395,17 @@ socket.on('webrtc-offer-response', async (data) => {
     await peerConnection.setLocalDescription(answerDescription);
 
     socket.emit('webrtc-answer', {
-      callId: currentCallId,
+      callId: peerConnectionID,
       answer: {
         type: answerDescription.type,
         sdp: answerDescription.sdp,
       }
     });
 
-    // Handle ICE candidates
     peerConnection.onicecandidate = event => {
       if (event.candidate) {
         socket.emit('webrtc-ice-candidate', {
-          callId: currentCallId,
+          callId: peerConnectionID,
           candidate: event.candidate.toJSON(),
           type: 'answer'
         });
@@ -405,28 +419,43 @@ socket.on('webrtc-offer-response', async (data) => {
   }
 });
 
-// Text messaging form handler
+
 form.addEventListener("submit", function (e) {
   e.preventDefault();
   if (input.value) {
     const message = input.value;
     console.log('Sending message:', message);
 
-    // Try to send via data channel first (P2P), fallback to Socket.io
+    //it no work cuz no peer connection yet, so no datachannel yet
     if (dataChannel && dataChannel.readyState === 'open') {
       dataChannel.send(message);
       addMessage('You', message, 'self');
-    } else {
+    } /*else {
+      //its using socket emit cuz no datachannel
       socket.emit("chat message", message);
       addMessage('You', message, 'self');
-    }
+    }*/
 
     input.value = "";
   }
 });
 
 // Socket.io chat message handler (server-based messaging)
+//the following is what happens when you recieve a messagew
+/*
 socket.on("chat message", function (msg) {
   console.log('Received server message:', msg);
-  addMessage('Server', msg, 'server');
+  addMessage('Peer', msg, 'server');
+});*/
+
+let hasOffered = false;
+socket.on("offerRTCConnection", function () {
+  if (hasOffered === false) {
+    offerPeerConnection();
+    hasOffered = true
+  }
+});
+
+socket.on("recieveRTCConnection", function () {
+  recievePeerConnection();
 });
