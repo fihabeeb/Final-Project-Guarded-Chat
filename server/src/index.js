@@ -131,7 +131,7 @@ const startServer = async () => {
     });
 
     server.listen(1111, () => {
-      console.log("Listening on *:3000");
+      console.log("Listening on: 1111");
     });
   } catch (error) {
     console.log("Som tin wong: ", error);

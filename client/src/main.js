@@ -2,7 +2,9 @@ import './style.css'
 import { io } from 'socket.io-client'
 
 // Connect to the Express server running on port 1111
-const socket = io('http://localhost:1111');
+//const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL = 'http://localhost:5000';
+const socket = io(SOCKET_URL);
 
 // WebRTC Configuration
 const servers = {
