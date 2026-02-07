@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(copy:*)",
+      "Bash(copy \"C:\\\\Users\\\\fihab\\\\OneDrive - UWE Bristol\\\\Final Project Alpha\\\\client\\\\src\\\\webrtc.js\" \"C:\\\\Users\\\\fihab\\\\OneDrive - UWE Bristol\\\\Final Project Alpha\\\\client-old\\\\src\\\\webrtc.js\")"
+    ]
+  }
+}
