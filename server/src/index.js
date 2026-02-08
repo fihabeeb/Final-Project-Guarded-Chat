@@ -11,6 +11,12 @@ const io = new Server(server, {
   },
 });
 
+const accounts = [
+  { name: 'Alice', password: '123', key: 'alice' },
+  { name: 'Bob', password: '456', key: 'bob' },
+  { name: 'Charlie', password: '789', key: 'charlie' },
+];
+
 // Storage for WebRTC calls
 const calls = new Map();
 let userCount = 0;

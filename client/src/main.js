@@ -5,7 +5,7 @@ import { io } from 'socket.io-client'
 //const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 const SOCKET_URL = 'http://localhost:5000';
 const socket = io(SOCKET_URL);
-
+let loggedIn = false;
 // WebRTC Configuration
 const servers = {
   iceServers: [
@@ -485,6 +485,71 @@ contacts.forEach(contact => {
   sidebar.appendChild(div);
 });
 
+
+// Login page handling
+const loginPage = document.getElementById('loginPage');
+const appContainer = document.getElementById('appContainer');
+const loginForm = document.getElementById('loginForm');
+const loginError = document.getElementById('loginError');
+
+// Skip login if already logged in
+if (loggedIn) {
+  loginPage.style.display = 'none';
+  appContainer.classList.remove('hidden');
+}
+
+loginForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  if (!username || !password) {
+    loginError.textContent = 'Please fill in all fields';
+    loginError.style.display = 'block';
+    return;
+  }
+
+  // Hide login page and show the app
+  loginPage.style.display = 'none';
+  appContainer.classList.remove('hidden');
+
+  // Use the username in the sidebar header and settings profile
+  document.querySelector('.sidebar-header h2').textContent = `Guarded Chat`;
+  document.getElementById('settingsUsername').textContent = username;
+  document.getElementById('settingsAvatar').textContent = username[0].toUpperCase();
+  loggedIn = true;
+  addMessage('System', `Logged in as ${username}`, 'system');
+});
+
+// Settings modal handling
+const settingsModal = document.getElementById('settingsModal');
+const settingsButton = document.getElementById('settingsButton');
+const closeSettingsButton = document.getElementById('closeSettingsButton');
+const logoutButton = document.getElementById('logoutButton');
+
+settingsButton.onclick = () => {
+  settingsModal.classList.add('active');
+};
+
+closeSettingsButton.onclick = () => {
+  settingsModal.classList.remove('active');
+};
+
+// Close settings when clicking the backdrop
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) {
+    settingsModal.classList.remove('active');
+  }
+});
+
+logoutButton.onclick = () => {
+  loggedIn = false;
+  settingsModal.classList.remove('active');
+  appContainer.classList.add('hidden');
+  loginPage.style.display = '';
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+};
 
 sidebar.addEventListener('click', (e) => {
   const item = e.target.closest('.contact-item');

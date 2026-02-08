@@ -3,544 +3,42 @@
   <head>
     <title>Guarded Chat</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        background: #111b21;
-        height: 100vh;
-        width: 100vw;
-        overflow: hidden;
-        display: block;
-      }
-
-      .app-container {
-        display: flex;
-        height: 100vh;
-        width: 100vw;
-        background: #111b21;
-      }
-
-      /* Sidebar */
-      .sidebar {
-        width: 350px;
-        background: #111b21;
-        border-right: 1px solid #2a2f32;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .sidebar-header {
-        background: #202c33;
-        padding: 15px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 60px;
-      }
-
-      .sidebar-header h2 {
-        color: #e9edef;
-        font-size: 16px;
-        font-weight: 500;
-      }
-
-      .sidebar-content {
-        flex: 1;
-        overflow-y: auto;
-        background: #111b21;
-      }
-
-      .contact-item {
-        padding: 15px;
-        border-bottom: 1px solid #2a2f32;
-        cursor: pointer;
-        transition: background 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .contact-item:hover {
-        background: #202c33;
-      }
-
-      .contact-item.active {
-        background: #2a3942;
-      }
-
-      .contact-avatar {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: #00a884;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #111b21;
-        font-weight: 600;
-        font-size: 18px;
-      }
-
-      .contact-info {
-        flex: 1;
-      }
-
-      .contact-name {
-        color: #e9edef;
-        font-size: 16px;
-        margin-bottom: 2px;
-      }
-
-      .contact-status {
-        color: #8696a0;
-        font-size: 13px;
-      }
-
-      /* Main Chat Area */
-      .chat-container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        background: #0b141a;
-      }
-
-      .chat-header {
-        background: #202c33;
-        padding: 10px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 60px;
-        border-bottom: 1px solid #2a2f32;
-      }
-
-      .chat-header-left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .chat-header-right {
-        display: flex;
-        gap: 20px;
-      }
-
-      .chat-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #00a884;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #111b21;
-        font-weight: 600;
-      }
-
-      .chat-info h3 {
-        color: #e9edef;
-        font-size: 16px;
-        font-weight: 400;
-      }
-
-      .chat-info p {
-        color: #8696a0;
-        font-size: 13px;
-        margin-top: 2px;
-      }
-
-      .icon-button {
-        background: none;
-        border: none;
-        color: #8696a0;
-        cursor: pointer;
-        padding: 8px;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-      }
-
-      .icon-button:hover {
-        background: #2a3942;
-      }
-
-      .icon-button svg {
-        width: 24px;
-        height: 24px;
-        fill: currentColor;
-      }
-
-      /* Messages Area */
-      .messages-container {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px;
-        background-image:
-          linear-gradient(rgba(11, 20, 26, 0.85), rgba(11, 20, 26, 0.85)),
-          url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23202c33" width="100" height="100"/><path d="M0 0L50 50L0 100L50 50L100 100L100 0L50 50L100 0Z" fill="%231a252d" opacity="0.1"/></svg>');
-      }
-
-      #messages {
-        list-style: none;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      #messages li {
-        max-width: 65%;
-        padding: 8px 12px;
-        border-radius: 8px;
-        word-wrap: break-word;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .message-self {
-        background: #005c4b;
-        align-self: flex-end;
-        margin-left: auto;
-        border-radius: 8px 0 8px 8px;
-      }
-
-      .message-peer,
-      .message-server {
-        background: #202c33;
-        align-self: flex-start;
-        border-radius: 0 8px 8px 8px;
-      }
-
-      .message-system {
-        background: #182229;
-        align-self: center;
-        text-align: center;
-        font-size: 13px;
-        padding: 6px 12px;
-        max-width: 80%;
-        border-radius: 8px;
-      }
-
-      .message-sender {
-        font-weight: 600;
-        font-size: 13px;
-        margin-bottom: 4px;
-        color: #00a884;
-      }
-
-      .message-self .message-sender {
-        color: #d1f4cc;
-      }
-
-      .message-text {
-        color: #e9edef;
-        font-size: 14.5px;
-        line-height: 1.4;
-      }
-
-      .message-system .message-text {
-        color: #8696a0;
-      }
-
-      .message-time {
-        font-size: 11px;
-        color: #8696a0;
-        align-self: flex-end;
-        margin-top: 4px;
-      }
-
-      .message-self .message-time {
-        color: #a0c6bc;
-      }
-
-      /* Input Area */
-      .input-container {
-        background: #202c33;
-        padding: 10px 16px;
-        border-top: 1px solid #2a2f32;
-      }
-
-      #form {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-      }
-
-      .input-wrapper {
-        flex: 1;
-        background: #2a3942;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        padding: 0 12px;
-      }
-
-      #input {
-        flex: 1;
-        background: none;
-        border: none;
-        color: #e9edef;
-        padding: 10px;
-        font-size: 15px;
-        outline: none;
-      }
-
-      #input::placeholder {
-        color: #8696a0;
-      }
-
-      .send-button {
-        background: #00a884;
-        border: none;
-        color: #111b21;
-        width: 45px;
-        height: 45px;
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-      }
-
-      .send-button:hover {
-        background: #06cf9c;
-      }
-
-      /* Video Call Modal */
-      .video-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.95);
-        z-index: 1000;
-        display: none;
-        flex-direction: column;
-      }
-
-      .video-modal.active {
-        display: flex;
-      }
-
-      .video-modal-header {
-        padding: 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: rgba(32, 44, 51, 0.9);
-      }
-
-      .video-modal-title {
-        color: #e9edef;
-        font-size: 18px;
-      }
-
-      .video-modal-content {
-        flex: 1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        position: relative;
-        padding: 20px;
-      }
-
-      .video-main {
-        width: 100%;
-        height: 100%;
-        max-width: 1200px;
-        max-height: 800px;
-        position: relative;
-        background: #000;
-        border-radius: 12px;
-        overflow: hidden;
-      }
-
-      #remoteVideo {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        background: #000;
-      }
-
-      .video-pip {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        width: 200px;
-        height: 150px;
-        border-radius: 8px;
-        overflow: hidden;
-        border: 2px solid #00a884;
-        background: #000;
-      }
-
-      #webcamVideo {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-
-      .video-controls {
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 15px;
-        padding: 15px 20px;
-        background: rgba(32, 44, 51, 0.95);
-        border-radius: 50px;
-      }
-
-      .control-btn {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-        background: #374955;
-        color: #e9edef;
-      }
-
-      .control-btn:hover {
-        background: #495f6e;
-      }
-
-      .control-btn.danger {
-        background: #f15c6d;
-        color: white;
-      }
-
-      .control-btn.danger:hover {
-        background: #d94452;
-      }
-
-      /* Call Setup Modal */
-      .call-setup-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
-        z-index: 999;
-        display: none;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .call-setup-modal.active {
-        display: flex;
-      }
-
-      .call-setup-content {
-        background: #202c33;
-        padding: 30px;
-        border-radius: 12px;
-        max-width: 400px;
-        width: 90%;
-      }
-
-      .call-setup-content h3 {
-        color: #e9edef;
-        margin-bottom: 20px;
-        font-size: 20px;
-      }
-
-      .call-setup-content input {
-        width: 100%;
-        padding: 12px;
-        background: #2a3942;
-        border: 1px solid #374955;
-        border-radius: 8px;
-        color: #e9edef;
-        font-size: 15px;
-        margin-bottom: 15px;
-      }
-
-      .call-setup-content input:focus {
-        outline: none;
-        border-color: #00a884;
-      }
-
-      .call-setup-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-      }
-
-      .btn {
-        padding: 10px 20px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 15px;
-        transition: all 0.2s;
-      }
-
-      .btn-secondary {
-        background: #374955;
-        color: #e9edef;
-      }
-
-      .btn-secondary:hover {
-        background: #495f6e;
-      }
-
-      .btn-primary {
-        background: #00a884;
-        color: #111b21;
-        font-weight: 500;
-      }
-
-      .btn-primary:hover {
-        background: #06cf9c;
-      }
-
-      /* Responsive */
-      @media (max-width: 768px) {
-        .sidebar {
-          width: 100%;
-          position: absolute;
-          z-index: 100;
-          display: none;
-        }
-
-        .sidebar.active {
-          display: flex;
-        }
-
-        .video-pip {
-          width: 120px;
-          height: 90px;
-          bottom: 100px;
-          right: 10px;
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <div class="app-container">
+    <!-- Login Page -->
+    <div class="login-page" id="loginPage">
+      <div class="login-header">
+        <h1>GUARDED CHAT</h1>
+      </div>
+      <div class="login-card">
+        <h2>Log in</h2>
+        <p>Enter your username and password to continue</p>
+        <form id="loginForm">
+          <div class="login-field">
+            <label>Username</label>
+            <input type="text" id="loginUsername" placeholder="Enter your username" required autocomplete="username" />
+          </div>
+          <div class="login-field">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter your password" required autocomplete="current-password" />
+          </div>
+          <div class="login-error" id="loginError">Invalid username or password</div>
+          <button type="submit" class="login-button">LOG IN</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="app-container hidden" id="appContainer">
       <!-- Sidebar -->
       <div class="sidebar">
         <div class="sidebar-header">
           <h2>Guarded Chat</h2>
+          <button class="icon-button" id="settingsButton" title="Settings">
+            <svg viewBox="0 0 24 24">
+              <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/>
+            </svg>
+          </button>
         </div>
         <div class="sidebar-content">
           <div class="contact-item active" data-contact="peer">
@@ -592,6 +90,145 @@
               </svg>
             </button>
           </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settingsModal">
+      <div class="settings-panel">
+        <div class="settings-header">
+          <button class="icon-button" id="closeSettingsButton">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+              <path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+            </svg>
+          </button>
+          <h2>Settings</h2>
+        </div>
+
+        <div class="settings-content">
+          <!-- Profile Section -->
+          <div class="settings-section">
+            <div class="settings-profile">
+              <div class="settings-profile-avatar" id="settingsAvatar">U</div>
+              <div class="settings-profile-info">
+                <div class="settings-profile-name" id="settingsUsername">Username</div>
+                <div class="settings-profile-status">Available</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Notifications</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Message notifications</span>
+                <span class="settings-item-desc">Show notifications for new messages</span>
+              </div>
+              <label class="settings-toggle">
+                <input type="checkbox" checked>
+                <span class="settings-toggle-slider"></span>
+              </label>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Sound</span>
+                <span class="settings-item-desc">Play sounds for incoming messages</span>
+              </div>
+              <label class="settings-toggle">
+                <input type="checkbox" checked>
+                <span class="settings-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Privacy -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Privacy</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Read receipts</span>
+                <span class="settings-item-desc">Let others know when you've read their messages</span>
+              </div>
+              <label class="settings-toggle">
+                <input type="checkbox" checked>
+                <span class="settings-toggle-slider"></span>
+              </label>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Last seen</span>
+                <span class="settings-item-desc">Show when you were last active</span>
+              </div>
+              <label class="settings-toggle">
+                <input type="checkbox">
+                <span class="settings-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Appearance -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Appearance</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Theme</span>
+                <span class="settings-item-desc">Choose your preferred theme</span>
+              </div>
+              <select class="settings-select">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="system">System</option>
+              </select>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Font size</span>
+                <span class="settings-item-desc">Adjust message text size</span>
+              </div>
+              <select class="settings-select">
+                <option value="small">Small</option>
+                <option value="medium" selected>Medium</option>
+                <option value="large">Large</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Chat Settings -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Chats</h3>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Enter key sends message</span>
+                <span class="settings-item-desc">Press Enter to send, Shift+Enter for new line</span>
+              </div>
+              <label class="settings-toggle">
+                <input type="checkbox" checked>
+                <span class="settings-toggle-slider"></span>
+              </label>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Media auto-download</span>
+                <span class="settings-item-desc">Automatically download photos and videos</span>
+              </div>
+              <label class="settings-toggle">
+                <input type="checkbox">
+                <span class="settings-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Account -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Account</h3>
+            <div class="settings-item settings-item-clickable" id="logoutButton">
+              <div class="settings-item-info">
+                <span class="settings-item-label settings-item-danger">Log out</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
