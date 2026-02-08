@@ -509,6 +509,16 @@ loginForm.addEventListener('submit', (e) => {
     return;
   }
 
+  socket.emit('login-request', {
+    userName: username,
+    password: password
+  });
+
+});
+
+socket.on('login-approved', (name) => {
+  console.log("Logged in: " + name);
+
   // Hide login page and show the app
   loginPage.style.display = 'none';
   appContainer.classList.remove('hidden');
@@ -519,7 +529,8 @@ loginForm.addEventListener('submit', (e) => {
   document.getElementById('settingsAvatar').textContent = username[0].toUpperCase();
   loggedIn = true;
   addMessage('System', `Logged in as ${username}`, 'system');
-});
+
+})
 
 // Settings modal handling
 const settingsModal = document.getElementById('settingsModal');

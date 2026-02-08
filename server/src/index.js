@@ -12,10 +12,25 @@ const io = new Server(server, {
 });
 
 const accounts = [
-  { name: 'Alice', password: '123', key: 'alice' },
-  { name: 'Bob', password: '456', key: 'bob' },
-  { name: 'Charlie', password: '789', key: 'charlie' },
+  { name: 'Alice', password: '123', id: 'alice1' },
+  { name: 'Bob', password: '456', id: 'bob2' },
+  { name: 'Charlie', password: '789', id: 'charlie3' },
 ];
+
+
+function authenticateUser(nameIn, passwordIn) {
+  for (let i = 0; i < accounts.length; i++)
+  {
+    console.log("Authenticating user: " + nameIn);
+    console.log("Provided Password: " + passwordIn);
+    if (accounts[i].name == nameIn && accounts[i].password == passwordIn)
+    {
+      return accounts[i];
+    }
+  }
+  return null;
+}
+
 
 // Storage for WebRTC calls
 const calls = new Map();
@@ -43,6 +58,21 @@ io.on("connection", (socket) => {
     console.log("message: " + msg);
     //io.emit("chat message", msg);
   });
+
+  socket.on('login-request', (credentialsInput) => {
+  console.log("Login Request Recieved");
+  //Feel free to change to "let" in the event of any errors
+  const isUserLoggedIn = authenticateUser(credentialsInput.userName, credentialsInput.password);
+  if (isUserLoggedIn != null)
+  {
+    console.log("User Authenticated Successfuly");
+    socket.emit('login-approved', {
+      name: isUserLoggedIn.name,
+      id: isUserLoggedIn.id
+    });
+  }
+  })
+
 
   // WebRTC signaling handlers
   socket.on("webrtc-offer", (data) => {
