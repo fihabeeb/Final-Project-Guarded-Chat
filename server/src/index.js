@@ -12,9 +12,9 @@ const io = new Server(server, {
 });
 
 const accounts = [
-  { name: 'Alice', password: '123', id: 'alice1' },
+  { name: 'Alice', password: '123', id: 'alice1', friends: 'charlie3' },
   { name: 'Bob', password: '456', id: 'bob2' },
-  { name: 'Charlie', password: '789', id: 'charlie3' },
+  { name: 'Charlie', password: '789', id: 'charlie3', friends: 'alice1' },
 ];
 
 
