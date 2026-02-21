@@ -1,29 +1,12 @@
 import './style.css'
-import { io } from 'socket.io-client'
-
-// Connect to the Express server running on port 1111
-//const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
-const SOCKET_URL = 'http://localhost:5000';
-const socket = io(SOCKET_URL);
+import { socket } from './socketIO.js';
+import { socketHandlers } from './socketIoHandlers.js';
+import { offerPeerConnection, recievePeerConnection, rtcSockets, endCall, startWebcam, dataChannel } from './webrtc.js';
+import { getPeerConnectionId, setPeerConnectionId } from './peerConnectionId.js';
 let loggedIn = false;
-// WebRTC Configuration
-const servers = {
-  iceServers: [
-    {
-      urls: [
-        'stun:stun1.l.google.com:19302',
-        'stun:stun2.l.google.com:19302',
-      ],
-    },
-  ],
-  iceCandidatePoolSize: 10,
-};
 
-let peerConnection = null;
+
 let localStream = null;
-let remoteStream = null;
-let dataChannel = null;
-let peerConnectionID = 555;
 let isMuted = false;
 let isCameraOff = false;
 let isInCall = false;
@@ -31,12 +14,9 @@ let isInCall = false;
 // DOM Elements
 const videoModal = document.getElementById('videoModal');
 const callSetupModal = document.getElementById('callSetupModal');
-const webcamVideo = document.getElementById('webcamVideo');
-const remoteVideo = document.getElementById('remoteVideo');
 const messages = document.getElementById("messages");
 const form = document.getElementById("form");
 const input = document.getElementById("input");
-const connectionStatus = document.getElementById('connectionStatus');
 const videoCallButton = document.getElementById('videoCallButton');
 const joinCallButton = document.getElementById('joinCallButton');
 const hangupButton = document.getElementById('hangupButton');
@@ -49,78 +29,15 @@ const callIdDisplay = document.getElementById('callIdDisplay');
 const cancelCallSetup = document.getElementById('cancelCallSetup');
 const confirmCallSetup = document.getElementById('confirmCallSetup');
 
-console.log("Client-side script loaded");
-
-// Socket.io connection handlers
-socket.on('connect', () => {
-  console.log('Connected to server!');
-  updateConnectionStatus('online');
-  addMessage('System', 'Connected to server', 'system');
-});
-
-socket.on('connect_error', (error) => {
-  console.error('Connection error:', error);
-  updateConnectionStatus('offline');
-});
-
-socket.on('disconnect', () => {
-  console.log('Disconnected from server');
-  updateConnectionStatus('offline');
-  addMessage('System', 'Disconnected from server', 'system');
-});
-
-// Update connection status indicator
-function updateConnectionStatus(status) {
-  connectionStatus.textContent = status;
-  connectionStatus.style.color = status === 'online' ? '#00a884' : '#8696a0';
-}
+socketHandlers(socket);
+rtcSockets(socket);
 
 // Initialize peer connection
 // isOfferer: true if this client is creating the call, false if joining
-function createPeerConnection() {
-  peerConnection = new RTCPeerConnection(servers);
 
-  // Create data channel for text messaging
-  dataChannel = peerConnection.createDataChannel('chat');
-  setupDataChannel(dataChannel);
-
-  // Handle incoming data channel
-  peerConnection.ondatachannel = (event) => {
-    dataChannel = event.channel;
-    setupDataChannel(dataChannel);
-  };
-
-  // Handle incoming tracks (video/audio)
-  peerConnection.ontrack = event => {
-    event.streams[0].getTracks().forEach(track => {
-      remoteStream.addTrack(track);
-    });
-  };
-
-  return peerConnection;
-}
-
-// Setup data channel event handlers
-function setupDataChannel(channel) {
-  channel.onopen = () => {
-    console.log('Data channel opened');
-    updateConnectionStatus('P2P connected');
-    addMessage('System', 'Peer-to-peer connection established', 'system');
-  };
-
-  channel.onclose = () => {
-    console.log('Data channel closed');
-    updateConnectionStatus('online');
-  };
-
-  channel.onmessage = (event) => {
-    console.log('Received P2P message:', event.data);
-    addMessage('Peer', event.data, 'peer');
-  };
-}
 
 // Add message to chat UI with timestamp
-function addMessage(sender, text, type = 'default') {
+export function addMessage(sender, text, type = 'default') {
   const item = document.createElement("li");
   item.className = `message-${type}`;
 
@@ -157,22 +74,6 @@ function addMessage(sender, text, type = 'default') {
   messages.parentElement.scrollTop = messages.parentElement.scrollHeight;
 }
 
-// Start webcam
-async function startWebcam() {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    remoteStream = new MediaStream();
-
-    webcamVideo.srcObject = localStream;
-    remoteVideo.srcObject = remoteStream;
-
-    return true;
-  } catch (error) {
-    console.error('Error accessing webcam:', error);
-    addMessage('System', 'Error accessing webcam: ' + error.message, 'system');
-    return false;
-  }
-}
 
 // Video Call Button - Create call
 videoCallButton.onclick = async () => {
@@ -192,7 +93,7 @@ videoCallButton.onclick = async () => {
 
   // Generate unique call ID
   //peerConnectionID = Math.random().toString(36).substring(7);
-  callIdDisplay.textContent = `Call ID: ${peerConnectionID}\nShare this ID with the person you want to call`;
+  callIdDisplay.textContent = `Call ID: ${getPeerConnectionId()}\nShare this ID with the person you want to call`;
 };
 
 // Join Call Button
@@ -211,84 +112,25 @@ cancelCallSetup.onclick = () => {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
   }
-  //peerConnectionID = null;
 };
-let isVideo = false;
-async function offerPeerConnection() {
-  try {
-    createPeerConnection();
 
-    // Add local tracks
-    if (isVideo) {
-      localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, localStream);
-      });
-    }
 
-    // Create offer
-    const offerDescription = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offerDescription);
 
-    // Send offer via Socket.io
-    socket.emit('webrtc-offer', {
-      callId: peerConnectionID,
-      offer: {
-        sdp: offerDescription.sdp,
-        type: offerDescription.type,
-      }
-    });
 
-    addMessage('System', `Call created. ID: ${peerConnectionID}`, 'system');
-
-    // Handle ICE candidates
-    peerConnection.onicecandidate = event => {
-      if (event.candidate) {
-        socket.emit('webrtc-ice-candidate', {
-          callId: peerConnectionID,
-          candidate: event.candidate.toJSON(),
-          type: 'offer'
-        });
-      }
-    };
-  } catch (error) {
-    console.error('Error creating call:', error);
-    addMessage('System', 'Error creating call: ' + error.message, 'system');
-  }
-}
-
-async function recievePeerConnection() {
-  try {
-    createPeerConnection();
-
-    // Add local tracks
-    if (isVideo) {
-      localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, localStream);
-      });
-    }
-
-    // Request the offer
-    socket.emit('webrtc-get-offer', { callId: peerConnectionID });
-
-  } catch (error) {
-    console.error('Error answering call:', error);
-    addMessage('System', 'Error answering call: ' + error.message, 'system');
-  }
-}
 // Confirm call setup
 confirmCallSetup.onclick = async () => {
   const isCreatingCall = callInput.style.display === 'none';
 
   if (isCreatingCall) {
-    offerPeerConnection();
+    offerPeerConnection(socket);
     isInCall = true;
     callSetupModal.classList.remove('active');
     videoModal.classList.add('active');
   }
   else {
     // Join call
-    peerConnectionID = callInput.value.trim();
-    if (!peerConnectionID) {
+    setPeerConnectionId(callInput.value.trim());
+    if (!getPeerConnectionId()) {
       addMessage('System', 'Please enter a call ID', 'system');
       return;
     }
@@ -298,7 +140,7 @@ confirmCallSetup.onclick = async () => {
       callSetupModal.classList.remove('active');
       return;
     }
-    recievePeerConnection();
+    recievePeerConnection(socket);
     isInCall = true;
     callSetupModal.classList.remove('active');
     videoModal.classList.add('active');
@@ -334,92 +176,9 @@ toggleCameraButton.onclick = () => {
 // Hangup or close video
 // Note that this kills the peer connection
 // Peer cnnection isnt used for chatting yet
-const endCall = () => {
-  /*if (peerConnection) {
-    peerConnection.close();
-    peerConnection = null;
-  }
-
-  if (dataChannel) {
-    dataChannel.close();
-    dataChannel = null;
-  }*/
-
-  if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
-  }
-
-  webcamVideo.srcObject = null;
-  remoteVideo.srcObject = null;
-  localStream = null;
-  remoteStream = null;
-  //peerConnectionID = null;
-  isInCall = false;
-  isMuted = false;
-  isCameraOff = false;
-
-  videoModal.classList.remove('active');
-  updateConnectionStatus('online');
-  addMessage('System', 'Call ended', 'system');
-};
 
 hangupButton.onclick = endCall;
 closeVideoButton.onclick = endCall;
-
-socket.on('webrtc-offer', async (data) => {
-  console.log('Received offer:', data);
-});
-
-socket.on('webrtc-answer', async (data) => {
-  if (peerConnection && !peerConnection.currentRemoteDescription && data.answer) {
-    const answerDescription = new RTCSessionDescription(data.answer);
-    await peerConnection.setRemoteDescription(answerDescription);
-    addMessage('System', 'Call connected', 'system');
-  }
-});
-
-socket.on('webrtc-ice-candidate', async (data) => {
-  if (peerConnection && data.candidate) {
-    try {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-    } catch (error) {
-      console.error('Error adding ICE candidate:', error);
-    }
-  }
-});
-
-socket.on('webrtc-offer-response', async (data) => {
-  if (data.offer) {
-    const offerDescription = new RTCSessionDescription(data.offer);
-    await peerConnection.setRemoteDescription(offerDescription);
-
-    const answerDescription = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answerDescription);
-
-    socket.emit('webrtc-answer', {
-      callId: peerConnectionID,
-      answer: {
-        type: answerDescription.type,
-        sdp: answerDescription.sdp,
-      }
-    });
-
-    peerConnection.onicecandidate = event => {
-      if (event.candidate) {
-        socket.emit('webrtc-ice-candidate', {
-          callId: peerConnectionID,
-          candidate: event.candidate.toJSON(),
-          type: 'answer'
-        });
-      }
-    };
-
-    addMessage('System', 'Answering call...', 'system');
-  } else if (data.error) {
-    addMessage('System', 'Call not found: ' + data.error, 'system');
-    endCall();
-  }
-});
 
 form.addEventListener("submit", function (e) {
   e.preventDefault();
@@ -427,7 +186,6 @@ form.addEventListener("submit", function (e) {
     const message = input.value;
     console.log('Sending message:', message);
 
-    //it no work cuz no peer connection yet, so no datachannel yet
     if (dataChannel && dataChannel.readyState === 'open') {
       dataChannel.send(message);
       addMessage('You', message, 'self');
@@ -452,13 +210,13 @@ socket.on("chat message", function (msg) {
 let hasOffered = false;
 socket.on("offerRTCConnection", function () {
   if (hasOffered === false) {
-    offerPeerConnection();
+    offerPeerConnection(socket);
     hasOffered = true
   }
 });
 
 socket.on("recieveRTCConnection", function () {
-  recievePeerConnection();
+  recievePeerConnection(socket);
 });
 
 

@@ -1,60 +1,26 @@
-//import firebase, { initializeApp } from 'firebase/app';
-import { initializeApp } from 'firebase/app';
-import 'firebase/firestore'
-/*
-const webcamButton = document.getElementById('webcamButton');
-const webcamVideo = document.getElementById('webcamVideo');
-const callButton = document.getElementById('callButton');
-const callInput = document.getElementById('callInput');
-const answerButton = document.getElementById('answerButton');
-const remoteVideo = document.getElementById('remoteVideo');
-const hangupButton = document.getElementById('hangupButton');
-*/
-// Your web app's Firebase configuration
+import { servers } from "./iceServers.js";
+import { updateConnectionStatus } from "./uiScript.js";
+import { addMessage } from "./main.js";
+import { getPeerConnectionId, setPeerConnectionId } from "./peerConnectionId.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDv4OQTWK783SbRAPZpYWPCXz-7KTgyozE",
-  authDomain: "webrtc-tutorial-d268b.firebaseapp.com",
-  projectId: "webrtc-tutorial-d268b",
-  storageBucket: "webrtc-tutorial-d268b.firebasestorage.app",
-  messagingSenderId: "188157419481",
-  appId: "1:188157419481:web:a302d6fa4fed7f64aa03c8"
-};
-
-const app = initializeApp(firebaseConfig);
-//const firestore = app.firestore();
-
-const servers = {
-  iceServers: [
-    {
-      urls: [
-        'stun:stun1.l.google.com:19302',
-        'stun:stun2.l.google.com:19302',
-      ],
-    },
-  ],
-  iceCandidatePoolSize: 10,
-};
-
-//my webcam
-let localStream = null;
-// their webcam
+let peerConnection = null;
+export let dataChannel = null;
+let isVideo = false;
 let remoteStream = null;
 
 
+const webcamVideo = document.getElementById('webcamVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const videoModal = document.getElementById('videoModal');
 
-// Initialize Firebase
-function createPeerConnection(isOfferer) {
+function createPeerConnection() {
   peerConnection = new RTCPeerConnection(servers);
 
-  // Only the offerer creates the data channel
-  // The answerer receives it via ondatachannel event
-  if (isOfferer) {
-    dataChannel = peerConnection.createDataChannel('chat');
-    setupDataChannel(dataChannel);
-  }
+  // Create data channel for text messaging
+  dataChannel = peerConnection.createDataChannel('chat');
+  setupDataChannel(dataChannel);
 
-  // Handle incoming data channel (for the answerer)
+  // Handle incoming data channel
   peerConnection.ondatachannel = (event) => {
     dataChannel = event.channel;
     setupDataChannel(dataChannel);
@@ -70,120 +36,178 @@ function createPeerConnection(isOfferer) {
   return peerConnection;
 }
 
-async function startVideoStream() {
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  remoteStream = new MediaStream();
-
-  localStream.getTracks().forEach((track) => {
-    peerConnection.addTrack(track, localStream);
-  });
-
-  peerConnection.ontrack = event => {
-    event.streams[0].getTracks().forEach(track => {
-      remoteStream.addTrack(track);
-    });
+// Setup data channel event handlers
+function setupDataChannel(channel) {
+  channel.onopen = () => {
+    console.log('Data channel opened');
+    updateConnectionStatus('P2P connected');
+    addMessage('System', 'Peer-to-peer connection established', 'system');
   };
 
-  webcamVideo.srcObject = localStream;
-  remoteVideo.srcObject = localStream;
+  channel.onclose = () => {
+    console.log('Data channel closed');
+    updateConnectionStatus('online');
+  };
+
+  channel.onmessage = (event) => {
+    console.log('Received P2P message:', event.data);
+    addMessage('Peer', event.data, 'peer');
+  };
 }
 
+export async function offerPeerConnection(socket) {
+  try {
+    peerConnection = createPeerConnection();
 
-/*call the above function within this one
-  to get the video stream to start,
-  or within a similair "webcam clicking thingy"
-webcamButton.onclick = async () => {
+    // Add local tracks
+    if (isVideo) {
+      localStream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, localStream);
+      });
+    }
 
-};*/
+    // Create offer
+    const offerDescription = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offerDescription);
 
+    // Send offer via Socket.io
+    socket.emit('webrtc-offer', {
+      callId: getPeerConnectionId(),
+      offer: {
+        sdp: offerDescription.sdp,
+        type: offerDescription.type,
+      }
+    });
 
-//create an offer
-async function createOffer() {
-  console.log("Flip")
-  const callDoc = firestore.collection('calls').doc();
-  const offerCandidates = callDoc.collection('offerCandidates');
-  const answerCandidates = callDoc.collection('answerCandidates');
+    addMessage('System', `Call created. ID: ${getPeerConnectionId()}`, 'system');
 
-  callInput.value = callDoc.id;
-
-  peerConnection.onicecandidate = event => {
-    event.candidate && offerCandidates.add(event.candidate.toJSON());
+    // Handle ICE candidates
+    peerConnection.onicecandidate = event => {
+      if (event.candidate) {
+        socket.emit('webrtc-ice-candidate', {
+          callId: getPeerConnectionId(),
+          candidate: event.candidate.toJSON(),
+          type: 'offer'
+        });
+      }
+    };
+  } catch (error) {
+    console.error('Error creating call:', error);
+    addMessage('System', 'Error creating call: ' + error.message, 'system');
   }
+}
 
-  // creating offer
-  const offerDescription = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offerDescription);
+export async function recievePeerConnection(socket) {
+  try {
+    peerConnection = createPeerConnection();
 
-  const offer = {
-    sdp: offerDescription.sdp,
-    type: offerDescription.type,
-  };
+    // Add local tracks
+    if (isVideo) {
+      localStream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, localStream);
+      });
+    }
 
-  await callDoc.set({ offer });
+    // Request the offer
+    socket.emit('webrtc-get-offer', { callId: getPeerConnectionId() });
 
-  //listen for answer from other user
-  callDoc.onSnapshot((snapshot) => {
-    const data = snapshot.data();
+  } catch (error) {
+    console.error('Error answering call:', error);
+    addMessage('System', 'Error answering call: ' + error.message, 'system');
+  }
+}
 
-    if (!peerConnection.currentRemoteDescription && data?.answer) {
-      const data = snapshot.data();
-      if (!peerConnection.currentRemoteDescription && data?.answer) {
-        const answerDescription = new RTCSessionDescription(data.answer);
-        peerConnection.setRemoteDescription(answerDescription);
+export function rtcSockets(socket) {
+
+  socket.on('webrtc-offer', async (data) => {
+    console.log('Received offer:', data);
+  });
+
+  socket.on('webrtc-answer', async (data) => {
+    if (peerConnection && !peerConnection.currentRemoteDescription && data.answer) {
+      const answerDescription = new RTCSessionDescription(data.answer);
+      await peerConnection.setRemoteDescription(answerDescription);
+      addMessage('System', 'Call connected', 'system');
+    }
+  });
+
+  socket.on('webrtc-ice-candidate', async (data) => {
+    if (peerConnection && data.candidate) {
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+      } catch (error) {
+        console.error('Error adding ICE candidate:', error);
       }
     }
   });
 
-  answerCandidates.onSnapshot(snapshot => {
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added') {
-        const candidate = new RTCIceCandidate(change.doc.data());
-        peerConnection.addIceCandidate(candidate);
-      }
-    });
+  socket.on('webrtc-offer-response', async (data) => {
+    if (data.offer) {
+      const offerDescription = new RTCSessionDescription(data.offer);
+      await peerConnection.setRemoteDescription(offerDescription);
+
+      const answerDescription = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answerDescription);
+
+      socket.emit('webrtc-answer', {
+        callId: getPeerConnectionId(),
+        answer: {
+          type: answerDescription.type,
+          sdp: answerDescription.sdp,
+        }
+      });
+
+      peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+          socket.emit('webrtc-ice-candidate', {
+            callId: getPeerConnectionId(),
+            candidate: event.candidate.toJSON(),
+            type: 'answer'
+          });
+        }
+      };
+
+      addMessage('System', 'Answering call...', 'system');
+    } else if (data.error) {
+      addMessage('System', 'Call not found: ' + data.error, 'system');
+      endCall();
+    }
   });
-}
-/*Same here
-callButton.onclick = async () => {
 
+}
+
+export const endCall = () => {
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+  }
+
+  webcamVideo.srcObject = null;
+  remoteVideo.srcObject = null;
+  localStream = null;
+  remoteStream = null;
+  //getPeerConnectionId() = null;
+  isInCall = false;
+  isMuted = false;
+  isCameraOff = false;
+
+  videoModal.classList.remove('active');
+  updateConnectionStatus('online');
+  addMessage('System', 'Call ended', 'system');
 };
-*/
 
-// answer the call with the unique id
+// Start webcam
+export async function startWebcam() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    remoteStream = new MediaStream();
 
-async function answerCall() {
-  const callid = callInput.value;
-  const callDoc = firestore.collection('calls').doc(callId);
-  const answerCandidates = callDoc.collection('answerCandidates');
+    webcamVideo.srcObject = localStream;
+    remoteVideo.srcObject = remoteStream;
 
-  const callData = (await callDoc.get()).data();
-
-  const offerDescription = callData.offer;
-  await peerConnection.setRemoteDescription(new RTCSessionDescription(offerDescription));
-
-  const answerDescription = await peerConnection.createAnswer();
-  await peerConnection.setLocalDescription(answerDescription);
-
-  const answer = {
-    type: answerDescription.type,
-    sdp: answerDescription.sdp,
-  };
-
-  await callDoc.update({ answer });
-
-  offerCandidates.onSnapshot((snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      console.log(change)
-      if (change.type === 'added') {
-        let data = change.doc.data();
-        peerConnection.addIceCandidate(new RTCIceCandidate(data));
-      }
-    })
-  })
+    return true;
+  } catch (error) {
+    console.error('Error accessing webcam:', error);
+    addMessage('System', 'Error accessing webcam: ' + error.message, 'system');
+    return false;
+  }
 }
-/*Same Here
-answerButton.onclick = async () => {
-
-}*/
-
-export { createPeerConnection};
