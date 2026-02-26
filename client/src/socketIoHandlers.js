@@ -1,3 +1,6 @@
+import { addMessage } from './chatHistoryHandler.js';
+import { updateConnectionStatus } from './uiScript.js';
+
 export function socketHandlers(socket) {
     // Socket.io connection handlers
     socket.on('connect', () => {

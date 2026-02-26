@@ -1,10 +1,13 @@
+import { changeChatter } from "./chatHistoryHandler.js";
+
 
 const sidebar = document.querySelector('.sidebar-content');
 const contacts = [
-    { name: 'Alice', status: 'Online', key: 'alice' },
-    { name: 'Bob', status: 'Away', key: 'bob' },
-    { name: 'Charlie', status: 'Offline', key: 'charlie' },
-    { name: 'Dan', status: 'Offline', key: 'dan' },
+    { name: 'Alice', id: 'alice1'},
+    { name: 'Bob', id: 'bob2'},
+    { name: 'Charlie', id: 'charlie3'},
+    { name: 'Dan', id: 'dan4'},
+    { name: 'Dan', id: 'dan5'},
 ];
 
 export function sidebarListeners() {
@@ -16,7 +19,7 @@ export function sidebarListeners() {
     <div class="contact-avatar">${contact.name[0]}</div>
     <div class="contact-info">
       <div class="contact-name">${contact.name}</div>
-      <div class="contact-status">${contact.status}</div>
+      <div class="contact-status">${'is online?'}</div>
     </div>
   `;
         sidebar.appendChild(div);
@@ -26,10 +29,14 @@ export function sidebarListeners() {
         const item = e.target.closest('.contact-item');
         if (!item) return;
         // Remove active from all, set on clicked
-        sidebar.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
+        //sidebar.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+        //item.classList.add('active');
         document.querySelector('.chat-info h3').textContent = item.dataset.contact;
         document.querySelector('.chat-avatar').textContent = item.dataset.contact[0]; // first letter of new name
-        console.log('Selected:', item.dataset.contact);
+
+        // 2 chats cant have the same name, currently its using that to identify who you clicked on
+        // IT DOESNT EVEN WORK
+        const chatterId = contacts.find(contact => contact.name === 'item.dataset.contact').id
+        changeChatter(chatterId);
     });
 }

@@ -1,6 +1,6 @@
 import { servers } from "./iceServers.js";
 import { updateConnectionStatus } from "./uiScript.js";
-import { addMessage } from "./main.js";
+import { addMessage } from './chatHistoryHandler.js';
 import { getPeerConnectionId, setPeerConnectionId } from "./peerConnectionId.js";
 
 let peerConnection = null;

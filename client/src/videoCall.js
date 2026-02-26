@@ -1,5 +1,6 @@
 import { getPeerConnectionId, setPeerConnectionId } from './peerConnectionId.js';
 import { offerPeerConnection, recievePeerConnection, endCall, startWebcam } from './webrtc.js';
+import { addMessage } from './chatHistoryHandler.js';
 
 const joinCallButton = document.getElementById('joinCallButton');
 const hangupButton = document.getElementById('hangupButton');
