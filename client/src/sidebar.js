@@ -36,7 +36,7 @@ export function sidebarListeners() {
 
         // 2 chats cant have the same name, currently its using that to identify who you clicked on
         // IT DOESNT EVEN WORK
-        const chatterId = contacts.find(contact => contact.name === 'item.dataset.contact').id
+        const chatterId = contacts.find(contact => contact.name === item.dataset.contact).id
         changeChatter(chatterId);
     });
 }

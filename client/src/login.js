@@ -1,4 +1,5 @@
 import { socket } from "./socketIO.js";
+import { addMessage } from './chatHistoryHandler.js';
 // Login page handling
 const loginPage = document.getElementById('loginPage');
 const appContainer = document.getElementById('appContainer');

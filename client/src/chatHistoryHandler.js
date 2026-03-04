@@ -17,29 +17,35 @@ else
 let currenctChatHistory = [];
 export function changeChatter(chatterId)
 {
+
     const chatHistory = localStorage.getItem('chatHistory' + chatterId);
     if (chatHistory == null) {
-        localStorage.setItem('chatHistory' + chatterId, '');
+        addMessage('System', `Debug: ${1}`, 'system');
+        localStorage.setItem('chatHistory' + chatterId, JSON.stringify(currenctChatHistory));
         return;
     }
     else{
-        currenctChatHistory = JSON.parse(chatHistory);
+        addMessage('System', `Debug: ${2}`, 'system');
+        currenctChatHistory = JSON.parse(localStorage.getItem('chatHistory' + chatterId) || null);
     }
+    addMessage('System', `Debug: ${3}`, 'system');
     lastChattedWith = chatterId;
+    addMessage('System', `Debug: ${4}`, 'system');
     localStorage.setItem('lastChattedWith', lastChattedWith);
+    addMessage('System', `Debug: ${5}`, 'system');
     replaceChatHistory();
 }
 
 function replaceChatHistory()
-{
+{    addMessage('System', `Debug: ${6}`, 'system');
     messages.replaceChildren();
     currenctChatHistory.forEach(element => {
-        addMessage(element.sender, element.message, 'self', element.time);
+        addMessage(element.sender, element.message, element.type, element.time,true);
     });
 }
 
 // Add message to chat UI with timestamp
-export function addMessage(sender, text, type = 'default', optionalTime = null) {
+export function addMessage(sender, text, type = 'default', optionalTime = null, storageGeneration = false) {
   const item = document.createElement("li");
   item.className = `message-${type}`;
 
@@ -80,8 +86,11 @@ export function addMessage(sender, text, type = 'default', optionalTime = null) 
     item.appendChild(timeSpan);
 
     //save to localstore
-    currenctChatHistory.push({message: text, time: textTime, sender: sender});
-    localStorage.setItem('chatHistory' + lastChattedWith, JSON.stringify(currenctChatHistory));
+    if (!storageGeneration)
+    {
+        currenctChatHistory.push({message: text, time: textTime, sender: sender, type: type});
+        localStorage.setItem('chatHistory' + lastChattedWith, JSON.stringify(currenctChatHistory));
+    }
   }
 
   messages.appendChild(item);
