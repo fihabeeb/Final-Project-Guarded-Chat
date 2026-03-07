@@ -1,6 +1,21 @@
-import { authenticateUser, searchUsers, getUsersByIds } from "./auth.js";
+import { authenticateUser, searchUsers, getUsersByIds, getUserById } from "./auth.js";
 import { io } from "./io.js";
 import { getFriendsList, addFriend, removeFriend, areFriends } from "./friendsList.js";
+import {
+    sendFriendRequest,
+    getFriendRequests,
+    acceptFriendRequest,
+    rejectFriendRequest,
+    addPendingFriendAddition,
+    getPendingFriendAdditions
+} from "./friendRequests.js";
+import {
+    setUserOnline,
+    setUserOffline,
+    isUserOnline,
+    getUserSocketId,
+    getUserIdFromSocket
+} from "./onlineUsers.js";
 // Storage for WebRTC calls
 const calls = new Map();
 let userCount = 0;
@@ -17,6 +32,9 @@ export function PeerChatting(socket) {
     socket.on("disconnect", () => {
         console.log("user disconnected:", socket.id);
         userCount -= 1;
+
+        // Mark user as offline
+        setUserOffline(socket.id);
     });
 
     // Text chat message handler
@@ -32,10 +50,41 @@ export function PeerChatting(socket) {
         const isUserLoggedIn = authenticateUser(credentialsInput.userName, credentialsInput.password);
         if (isUserLoggedIn != null) {
             console.log("User Authenticated Successfuly");
+
+            // Mark user as online
+            setUserOnline(isUserLoggedIn.id, socket.id);
+
             socket.emit('login-approved', {
                 name: isUserLoggedIn.name,
                 id: isUserLoggedIn.id
             });
+
+            // Process any pending friend additions
+            const pendingFriends = getPendingFriendAdditions(isUserLoggedIn.id);
+            if (pendingFriends.length > 0) {
+                console.log(`Processing ${pendingFriends.length} pending friend additions for ${isUserLoggedIn.id}`);
+                pendingFriends.forEach(friendId => {
+                    addFriend(isUserLoggedIn.id, friendId);
+                });
+
+                // Send updated friends list
+                const friendIds = getFriendsList(isUserLoggedIn.id);
+                const friends = getUsersByIds(friendIds);
+                socket.emit('friendsList', friends);
+            }
+
+            // Send pending friend requests
+            const requests = getFriendRequests(isUserLoggedIn.id);
+            if (requests.length > 0) {
+                const requestsWithDetails = requests.map(req => {
+                    const user = getUserById(req.from);
+                    return {
+                        ...req,
+                        fromUser: user
+                    };
+                });
+                socket.emit('friendRequests', requestsWithDetails);
+            }
         }
     })
 
@@ -98,6 +147,118 @@ export function PeerChatting(socket) {
         const { userId, friendId } = data;
         const isFriend = areFriends(userId, friendId);
         socket.emit('friendshipStatus', { userId, friendId, isFriend });
+    });
+
+    // Friend request handlers
+    socket.on('sendFriendRequest', (data) => {
+        const { fromUserId, toUserId } = data;
+        console.log(`Friend request: ${fromUserId} -> ${toUserId}`);
+
+        // Check if already friends
+        if (areFriends(fromUserId, toUserId)) {
+            socket.emit('friendRequestSent', {
+                success: false,
+                message: 'Already friends'
+            });
+            return;
+        }
+
+        const result = sendFriendRequest(fromUserId, toUserId);
+        socket.emit('friendRequestSent', result);
+
+        // If recipient is online, notify them in real-time
+        if (result.success && isUserOnline(toUserId)) {
+            const recipientSocketId = getUserSocketId(toUserId);
+            const fromUser = getUserById(fromUserId);
+
+            io.to(recipientSocketId).emit('newFriendRequest', {
+                from: fromUserId,
+                fromUser: fromUser,
+                timestamp: new Date().toISOString()
+            });
+        }
+    });
+
+    socket.on('getFriendRequests', (userId) => {
+        console.log(`Get friend requests for: ${userId}`);
+        const requests = getFriendRequests(userId);
+        const requestsWithDetails = requests.map(req => {
+            const user = getUserById(req.from);
+            return {
+                ...req,
+                fromUser: user
+            };
+        });
+        socket.emit('friendRequests', requestsWithDetails);
+    });
+
+    socket.on('acceptFriendRequest', (data) => {
+        const { userId, fromUserId } = data;
+        console.log(`Accept friend request: ${userId} accepting ${fromUserId}`);
+
+        const result = acceptFriendRequest(userId, fromUserId);
+
+        if (result.success) {
+            // Add both users as friends
+            addFriend(userId, fromUserId);
+
+            // Send updated friends list to the accepter
+            const friendIds = getFriendsList(userId);
+            const friends = getUsersByIds(friendIds);
+            socket.emit('friendsList', friends);
+            socket.emit('friendRequestAccepted', { success: true, friendId: fromUserId });
+
+            // If the requester is online, add friend and notify them
+            if (isUserOnline(fromUserId)) {
+                addFriend(fromUserId, userId);
+                const requesterSocketId = getUserSocketId(fromUserId);
+                const requesterFriendIds = getFriendsList(fromUserId);
+                const requesterFriends = getUsersByIds(requesterFriendIds);
+
+                io.to(requesterSocketId).emit('friendsList', requesterFriends);
+                io.to(requesterSocketId).emit('friendRequestAcceptedByOther', {
+                    userId: userId,
+                    user: getUserById(userId)
+                });
+            } else {
+                // Requester is offline, add to pending additions
+                addPendingFriendAddition(fromUserId, userId);
+            }
+
+            // Send updated friend requests list
+            const requests = getFriendRequests(userId);
+            const requestsWithDetails = requests.map(req => {
+                const user = getUserById(req.from);
+                return {
+                    ...req,
+                    fromUser: user
+                };
+            });
+            socket.emit('friendRequests', requestsWithDetails);
+        } else {
+            socket.emit('friendRequestAccepted', result);
+        }
+    });
+
+    socket.on('rejectFriendRequest', (data) => {
+        const { userId, fromUserId } = data;
+        console.log(`Reject friend request: ${userId} rejecting ${fromUserId}`);
+
+        const result = rejectFriendRequest(userId, fromUserId);
+        socket.emit('friendRequestRejected', result);
+
+        if (result.success) {
+            // Send updated friend requests list
+            const requests = getFriendRequests(userId);
+            const requestsWithDetails = requests.map(req => {
+                const user = getUserById(req.from);
+                return {
+                    ...req,
+                    fromUser: user
+                };
+            });
+            socket.emit('friendRequests', requestsWithDetails);
+        }
     });
 
     // WebRTC signaling handlers

@@ -8,6 +8,7 @@ import { settingsListeners } from './appSettings.js';
 import { sidebarListeners } from './sidebar.js';
 import { addMessage } from './chatHistoryHandler.js';
 import { userDiscoveryListeners } from './userDiscovery.js';
+import { friendRequestsListeners } from './friendRequests.js';
 
 // DOM Elements
 const form = document.getElementById("form");
@@ -22,6 +23,7 @@ ifLoginApproved();
 settingsListeners();
 sidebarListeners();
 userDiscoveryListeners();
+friendRequestsListeners();
 
 // Sending a message
 form.addEventListener("submit", function (e) {

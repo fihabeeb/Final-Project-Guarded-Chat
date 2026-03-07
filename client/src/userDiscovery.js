@@ -56,6 +56,15 @@ export function userDiscoveryListeners() {
   socket.on('userSearchResults', (results) => {
     displaySearchResults(results);
   });
+
+  // Listen for friend request sent confirmation
+  socket.on('friendRequestSent', (result) => {
+    if (result.success) {
+      alert('Friend request sent successfully!');
+    } else {
+      alert(`Failed to send friend request: ${result.message}`);
+    }
+  });
 }
 
 function searchUsers(query) {
@@ -76,7 +85,7 @@ function displaySearchResults(results) {
         <div class="user-result-id">ID: ${user.id}</div>
       </div>
       <button class="user-result-action" data-user-id="${user.id}" data-user-name="${user.name}">
-        Chat
+        Add Friend
       </button>
     </div>
   `).join('');
@@ -108,17 +117,16 @@ function startChatWithUser(userId, userName) {
     return;
   }
 
-  // Add friend to server-side friends list
-  addFriendToSidebar({ id: userId, name: userName });
+  // Send friend request instead of directly adding
+  socket.emit('sendFriendRequest', {
+    fromUserId: currentUserId,
+    toUserId: userId
+  });
 
   // Close discovery modal
   closeDiscoveryModal();
 
-  // Select the user in chat
-  document.querySelector('.chat-info h3').textContent = userName;
-  document.querySelector('.chat-avatar').textContent = userName[0].toUpperCase();
-
-  console.log(`Added ${userName} (${userId}) to friends list`);
+  console.log(`Friend request sent to ${userName} (${userId})`);
 }
 
 function showEmptyState() {
