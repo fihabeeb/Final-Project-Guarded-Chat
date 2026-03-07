@@ -1,5 +1,6 @@
-import { authenticateUser } from "./auth.js";
+import { authenticateUser, searchUsers, getUsersByIds } from "./auth.js";
 import { io } from "./io.js";
+import { getFriendsList, addFriend, removeFriend, areFriends } from "./friendsList.js";
 // Storage for WebRTC calls
 const calls = new Map();
 let userCount = 0;
@@ -38,6 +39,66 @@ export function PeerChatting(socket) {
         }
     })
 
+    // User search handler
+    socket.on('searchUsers', (query) => {
+        console.log("User search request:", query);
+        const results = searchUsers(query);
+        console.log("Search results:", results);
+        socket.emit('userSearchResults', results);
+    });
+
+    // Friends list handlers
+    socket.on('getFriendsList', (userId) => {
+        console.log("Get friends list request for:", userId);
+        const friendIds = getFriendsList(userId);
+        const friends = getUsersByIds(friendIds);
+        console.log("Friends list:", friends);
+        socket.emit('friendsList', friends);
+    });
+
+    socket.on('addFriend', (data) => {
+        const { userId, friendId } = data;
+        console.log(`Add friend request: ${userId} wants to add ${friendId}`);
+
+        const success = addFriend(userId, friendId);
+
+        if (success) {
+            // Get updated friends list
+            const friendIds = getFriendsList(userId);
+            const friends = getUsersByIds(friendIds);
+            socket.emit('friendsList', friends);
+            socket.emit('friendAdded', { success: true, friendId });
+            console.log(`Friend added successfully: ${userId} -> ${friendId}`);
+        } else {
+            socket.emit('friendAdded', { success: false, message: 'Friend already exists' });
+            console.log(`Friend already exists: ${userId} -> ${friendId}`);
+        }
+    });
+
+    socket.on('removeFriend', (data) => {
+        const { userId, friendId } = data;
+        console.log(`Remove friend request: ${userId} wants to remove ${friendId}`);
+
+        const success = removeFriend(userId, friendId);
+
+        if (success) {
+            // Get updated friends list
+            const friendIds = getFriendsList(userId);
+            const friends = getUsersByIds(friendIds);
+            socket.emit('friendsList', friends);
+            socket.emit('friendRemoved', { success: true, friendId });
+            console.log(`Friend removed successfully: ${userId} -> ${friendId}`);
+        } else {
+            socket.emit('friendRemoved', { success: false, message: 'Friend not found' });
+            console.log(`Friend not found: ${userId} -> ${friendId}`);
+        }
+    });
+
+    socket.on('checkFriendship', (data) => {
+        const { userId, friendId } = data;
+        const isFriend = areFriends(userId, friendId);
+        socket.emit('friendshipStatus', { userId, friendId, isFriend });
+    });
 
     // WebRTC signaling handlers
     socket.on("webrtc-offer", (data) => {

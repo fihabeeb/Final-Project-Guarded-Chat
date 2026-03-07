@@ -1,42 +1,86 @@
 import { changeChatter } from "./chatHistoryHandler.js";
-
+import { socket } from "./socketIO.js";
 
 const sidebar = document.querySelector('.sidebar-content');
-const contacts = [
-    { name: 'Alice', id: 'alice1'},
-    { name: 'Bob', id: 'bob2'},
-    { name: 'Charlie', id: 'charlie3'},
-    { name: 'Dan', id: 'dan4'},
-    { name: 'Dan', id: 'dan5'},
-];
+let currentUserId = null;
+let friendsList = [];
 
 export function sidebarListeners() {
-    contacts.forEach(contact => {
-        const div = document.createElement('div');
-        div.className = 'contact-item';
-        div.dataset.contact = contact.name;
-        div.innerHTML = `
-    <div class="contact-avatar">${contact.name[0]}</div>
-    <div class="contact-info">
-      <div class="contact-name">${contact.name}</div>
-      <div class="contact-status">${'is online?'}</div>
-    </div>
-  `;
-        sidebar.appendChild(div);
+    // Listen for friends list from server
+    socket.on('friendsList', (friends) => {
+        console.log('Received friends list:', friends);
+        friendsList = friends;
+        renderFriendsList(friends);
     });
 
+    // Handle contact clicks
     sidebar.addEventListener('click', (e) => {
         const item = e.target.closest('.contact-item');
         if (!item) return;
-        // Remove active from all, set on clicked
-        //sidebar.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-        //item.classList.add('active');
-        document.querySelector('.chat-info h3').textContent = item.dataset.contact;
-        document.querySelector('.chat-avatar').textContent = item.dataset.contact[0]; // first letter of new name
 
-        // 2 chats cant have the same name, currently its using that to identify who you clicked on
-        // IT DOESNT EVEN WORK
-        const chatterId = contacts.find(contact => contact.name === item.dataset.contact).id
-        changeChatter(chatterId);
+        const contactName = item.dataset.contact;
+        const contactId = item.dataset.contactId;
+
+        // Update chat header
+        document.querySelector('.chat-info h3').textContent = contactName;
+        document.querySelector('.chat-avatar').textContent = contactName[0];
+
+        // Find the friend object
+        const friend = friendsList.find(f => f.id === contactId);
+        if (friend) {
+            changeChatter(friend);
+        }
     });
+}
+
+export function loadFriendsList(userId) {
+    console.log('Loading friends list for user:', userId);
+    currentUserId = userId;
+    socket.emit('getFriendsList', userId);
+}
+
+export function renderFriendsList(friends) {
+    // Clear existing contacts
+    sidebar.innerHTML = '';
+
+    if (friends.length === 0) {
+        sidebar.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #8696a0; font-size: 14px;">
+                No friends yet. Use the search icon to discover users!
+            </div>
+        `;
+        return;
+    }
+
+    friends.forEach(friend => {
+        const div = document.createElement('div');
+        div.className = 'contact-item';
+        div.dataset.contact = friend.name;
+        div.dataset.contactId = friend.id;
+        div.innerHTML = `
+            <div class="contact-avatar">${friend.name[0].toUpperCase()}</div>
+            <div class="contact-info">
+                <div class="contact-name">${friend.name}</div>
+                <div class="contact-status">Available</div>
+            </div>
+        `;
+        sidebar.appendChild(div);
+    });
+}
+
+export function addFriendToSidebar(friend) {
+    if (!currentUserId) {
+        console.error('No current user ID set');
+        return;
+    }
+
+    // Send request to server to add friend
+    socket.emit('addFriend', {
+        userId: currentUserId,
+        friendId: friend.id
+    });
+}
+
+export function getCurrentUserId() {
+    return currentUserId;
 }

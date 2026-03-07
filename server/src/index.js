@@ -3,8 +3,10 @@ import app from "./app.js";
 import { PeerChatting } from "./RTCHandler.js";
 import { io } from "./io.js";
 import { server } from "./server.js";
+import { initializeDefaultFriends } from "./friendsList.js";
 
-
+// Initialize default friends list for testing
+initializeDefaultFriends();
 
 io.on("connection", (socket) => {
   PeerChatting(socket);

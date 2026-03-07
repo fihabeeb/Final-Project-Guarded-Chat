@@ -18,20 +18,20 @@ let currenctChatHistory = [];
 export function changeChatter(chatterId)
 {
 
-    const chatHistory = localStorage.getItem('chatHistory' + chatterId);
+    const chatHistory = localStorage.getItem('chatHistory' + chatterId.id);
     if (chatHistory == null) {
         addMessage('System', `Debug: ${1}`, 'system');
-        localStorage.setItem('chatHistory' + chatterId, JSON.stringify(currenctChatHistory));
+        localStorage.setItem('chatHistory' + chatterId.id, JSON.stringify(currenctChatHistory));
         return;
     }
     else{
         addMessage('System', `Debug: ${2}`, 'system');
-        currenctChatHistory = JSON.parse(localStorage.getItem('chatHistory' + chatterId) || null);
+        currenctChatHistory = JSON.parse(localStorage.getItem('chatHistory' + chatterId.id) || null);
     }
     addMessage('System', `Debug: ${3}`, 'system');
     lastChattedWith = chatterId;
     addMessage('System', `Debug: ${4}`, 'system');
-    localStorage.setItem('lastChattedWith', lastChattedWith);
+    localStorage.setItem('lastChattedWith', lastChattedWith.id);
     addMessage('System', `Debug: ${5}`, 'system');
     replaceChatHistory();
 }
@@ -60,7 +60,7 @@ export function addMessage(sender, text, type = 'default', optionalTime = null, 
     if (sender && type !== 'self') {
       const senderSpan = document.createElement("span");
       senderSpan.className = "message-sender";
-      senderSpan.textContent = sender;
+      senderSpan.textContent = lastChattedWith.name;
       item.appendChild(senderSpan);
     }
 
@@ -89,7 +89,7 @@ export function addMessage(sender, text, type = 'default', optionalTime = null, 
     if (!storageGeneration)
     {
         currenctChatHistory.push({message: text, time: textTime, sender: sender, type: type});
-        localStorage.setItem('chatHistory' + lastChattedWith, JSON.stringify(currenctChatHistory));
+        localStorage.setItem('chatHistory' + lastChattedWith.id, JSON.stringify(currenctChatHistory));
     }
   }
 

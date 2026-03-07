@@ -7,6 +7,7 @@ import { autoLogin, ifLoginApproved } from './login.js';
 import { settingsListeners } from './appSettings.js';
 import { sidebarListeners } from './sidebar.js';
 import { addMessage } from './chatHistoryHandler.js';
+import { userDiscoveryListeners } from './userDiscovery.js';
 
 // DOM Elements
 const form = document.getElementById("form");
@@ -20,6 +21,7 @@ autoLogin();
 ifLoginApproved();
 settingsListeners();
 sidebarListeners();
+userDiscoveryListeners();
 
 // Sending a message
 form.addEventListener("submit", function (e) {
