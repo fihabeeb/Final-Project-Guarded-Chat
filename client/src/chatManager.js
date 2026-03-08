@@ -12,6 +12,28 @@ export function setChatManager(userId) {
   currentUserId = userId;
 }
 
+function updatePendingBadge(contactId, count) {
+  const item = document.querySelector(`.contact-item[data-contact-id="${contactId}"]`);
+  if (!item) return;
+  let badge = item.querySelector('.pending-badge');
+  if (count > 0) {
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'pending-badge';
+      item.appendChild(badge);
+    }
+    badge.textContent = count > 99 ? '99+' : count;
+  } else if (badge) {
+    badge.remove();
+  }
+}
+
+export function reapplyPendingBadges() {
+  pendingMessagesByUser.forEach((messages, contactId) => {
+    updatePendingBadge(contactId, messages.length);
+  });
+}
+
 export function setCurrentChatPartner(partnerId, partnerName) {
   currentChatPartnerId = partnerId;
   currentChatPartnerName = partnerName;
@@ -27,8 +49,9 @@ export function setCurrentChatPartner(partnerId, partnerName) {
       addMessage(msg.fromName, msg.message, 'other');
     });
 
-    // Clear pending messages for this user
+    // Clear pending messages and remove badge
     pendingMessagesByUser.delete(partnerId);
+    updatePendingBadge(partnerId, 0);
   }
 }
 
@@ -79,8 +102,8 @@ export function setupMessageListeners() {
         pendingMessagesByUser.set(data.from, []);
       }
       pendingMessagesByUser.get(data.from).push(data);
+      updatePendingBadge(data.from, pendingMessagesByUser.get(data.from).length);
 
-      // Show notification for messages from other users
       console.log(`Message from ${data.fromName} stored for later (not current chat): ${data.message}`);
 
       // Could show a notification badge on the contact here
@@ -107,28 +130,23 @@ export function setupMessageListeners() {
         groupedMessages[msg.from].push(msg);
       });
 
-      // Store pending messages for later display
+      // Store pending messages for later display and show badges
       Object.keys(groupedMessages).forEach(senderId => {
         if (!pendingMessagesByUser.has(senderId)) {
           pendingMessagesByUser.set(senderId, []);
         }
         const userMessages = pendingMessagesByUser.get(senderId);
         userMessages.push(...groupedMessages[senderId]);
+        updatePendingBadge(senderId, userMessages.length);
       });
-
-      // Show notification
-      const senderCount = Object.keys(groupedMessages).length;
-      const totalMessages = messages.length;
-
-      alert(`You have ${totalMessages} new message${totalMessages > 1 ? 's' : ''} from ${senderCount} contact${senderCount > 1 ? 's' : ''}!`);
 
       // If currently chatting with one of the senders, display those messages immediately
       if (currentChatPartnerId && groupedMessages[currentChatPartnerId]) {
         groupedMessages[currentChatPartnerId].forEach(msg => {
           addMessage(msg.fromName, msg.message, 'other');
         });
-        // Clear since we just displayed them
         pendingMessagesByUser.delete(currentChatPartnerId);
+        updatePendingBadge(currentChatPartnerId, 0);
       }
     }
   });

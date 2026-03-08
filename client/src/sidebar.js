@@ -1,6 +1,6 @@
 import { changeChatter } from "./chatHistoryHandler.js";
 import { socket } from "./socketIO.js";
-import { setCurrentChatPartner } from "./chatManager.js";
+import { setCurrentChatPartner, reapplyPendingBadges } from "./chatManager.js";
 
 const sidebar = document.querySelector('.sidebar-content');
 let currentUserId = null;
@@ -78,6 +78,8 @@ export function renderFriendsList(friends) {
         `;
         sidebar.appendChild(div);
     });
+
+    reapplyPendingBadges();
 }
 
 export function addFriendToSidebar(friend) {
