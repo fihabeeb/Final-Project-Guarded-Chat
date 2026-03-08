@@ -11,7 +11,9 @@
       <div class="login-header">
         <h1>GUARDED CHAT</h1>
       </div>
-      <div class="login-card">
+
+      <!-- Login Card -->
+      <div class="login-card" id="loginCard">
         <h2>Log in</h2>
         <p>Enter your username and password to continue</p>
         <form id="loginForm">
@@ -26,6 +28,34 @@
           <div class="login-error" id="loginError">Invalid username or password</div>
           <button type="submit" class="login-button">LOG IN</button>
         </form>
+        <p class="login-switch">Don't have an account? <a id="showRegister">Register</a></p>
+      </div>
+
+      <!-- Register Card -->
+      <div class="login-card" id="registerCard" style="display: none;">
+        <h2>Create account</h2>
+        <p>Choose a username and a display name</p>
+        <form id="registerForm">
+          <div class="login-field">
+            <label>Username <span class="login-field-hint">(used to log in, must be unique)</span></label>
+            <input type="text" id="registerUsername" placeholder="e.g. john_doe" required autocomplete="username" />
+          </div>
+          <div class="login-field">
+            <label>Display name <span class="login-field-hint">(shown to others)</span></label>
+            <input type="text" id="registerName" placeholder="e.g. John" required autocomplete="name" />
+          </div>
+          <div class="login-field">
+            <label>Password</label>
+            <input type="password" id="registerPassword" placeholder="At least 6 characters" required autocomplete="new-password" />
+          </div>
+          <div class="login-field">
+            <label>Confirm password</label>
+            <input type="password" id="registerPasswordConfirm" placeholder="Repeat your password" required autocomplete="new-password" />
+          </div>
+          <div class="login-error" id="registerError"></div>
+          <button type="submit" class="login-button">CREATE ACCOUNT</button>
+        </form>
+        <p class="login-switch">Already have an account? <a id="showLogin">Log in</a></p>
       </div>
     </div>
 

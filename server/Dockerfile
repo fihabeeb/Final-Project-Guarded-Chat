@@ -14,5 +14,5 @@ RUN --mount=type=bind,source=package.json,target=package.json \
 
 COPY --chown=node:node . .
 
-EXPOSE 3000
-CMD ["npm", "start"]
+EXPOSE 1111
+CMD ["node", "src/index.js"]

@@ -1,21 +1,42 @@
 services:
-  client:
-    build: ./client
-    ports:
-      - "3000:5173"
-    volumes:
-      - ./client:/usr/src/app
-      - /usr/src/app/node_modules
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
     environment:
-      - NODE_ENV=development
-      - VITE_SOCKET_URL=http://localhost:5000  # For browser connection
+      POSTGRES_DB: guardedchat
+      POSTGRES_USER: guardedchat
+      POSTGRES_PASSWORD: guardedchat_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guardedchat -d guardedchat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   server:
     build: ./server
-    ports:
-      - "5000:1111"
-    volumes:
-      - ./server:/usr/src/app
-      - /usr/src/app/node_modules
+    restart: unless-stopped
     environment:
-      - NODE_ENV=development
+      DATABASE_URL: postgresql://guardedchat:guardedchat_password@db:5432/guardedchat
+      NODE_ENV: development
+    ports:
+      - "1111:1111"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  client:
+    build: ./client
+    restart: unless-stopped
+    environment:
+      VITE_SOCKET_URL: http://localhost:1111
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:

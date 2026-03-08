@@ -1,4 +1,4 @@
-import { authenticateUser, searchUsers, getUsersByIds, getUserById } from "./auth.js";
+import { authenticateUser, registerUser, searchUsers, getUsersByIds, getUserById } from "./auth.js";
 import { io } from "./io.js";
 import { getFriendsList, addFriend, removeFriend, areFriends } from "./friendsList.js";
 import {
@@ -75,10 +75,24 @@ export function PeerChatting(socket) {
         }
     });
 
-    socket.on('login-request', (credentialsInput) => {
+    socket.on('register-request', async (data) => {
+        const { username, name, password } = data;
+        console.log(`Register request for username: ${username}`);
+        const result = await registerUser(username, name, password);
+        if (result.success) {
+            socket.emit('register-approved', {
+                id: result.user.id,
+                username: result.user.username,
+                name: result.user.name
+            });
+        } else {
+            socket.emit('register-error', { message: result.message });
+        }
+    });
+
+    socket.on('login-request', async (credentialsInput) => {
         console.log("Login Request Recieved");
-        //Feel free to change to "let" in the event of any errors
-        const isUserLoggedIn = authenticateUser(credentialsInput.userName, credentialsInput.password);
+        const isUserLoggedIn = await authenticateUser(credentialsInput.userName, credentialsInput.password);
         if (isUserLoggedIn != null) {
             console.log("User Authenticated Successfuly");
 
@@ -135,14 +149,15 @@ export function PeerChatting(socket) {
                 // Clear the message queue after delivery
                 clearPendingMessages(isUserLoggedIn.id);
             }
+        } else {
+            socket.emit('login-rejected');
         }
     })
 
     // User search handler
-    socket.on('searchUsers', (query) => {
+    socket.on('searchUsers', async (query) => {
         console.log("User search request:", query);
-        const results = searchUsers(query);
-        console.log("Search results:", results);
+        const results = await searchUsers(query);
         socket.emit('userSearchResults', results);
     });
 
