@@ -2,6 +2,8 @@ import { servers } from "./iceServers.js";
 import { updateConnectionStatus } from "./uiScript.js";
 import { addMessage } from './chatHistoryHandler.js';
 import { getPeerConnectionId, setPeerConnectionId } from "./peerConnectionId.js";
+import { encryptMessage, decryptMessage, hasKeyForFriend } from './encryption.js';
+import { getCurrentChatPartner } from './chatManager.js';
 
 let peerConnection = null;
 export let dataChannel = null;
@@ -49,9 +51,19 @@ function setupDataChannel(channel) {
     updateConnectionStatus('online');
   };
 
-  channel.onmessage = (event) => {
-    console.log('Received P2P message:', event.data);
-    addMessage('Peer', event.data, 'peer');
+  channel.onmessage = async (event) => {
+    console.log('Received P2P message (encrypted)');
+    const partner = getCurrentChatPartner();
+    let text = event.data;
+    if (partner.id && hasKeyForFriend(partner.id)) {
+      try {
+        text = await decryptMessage(event.data, partner.id);
+      } catch (e) {
+        console.error('[Encryption] P2P decryption failed:', e);
+        text = '[could not decrypt message]';
+      }
+    }
+    addMessage('Peer', text, 'peer');
   };
 }
 
@@ -174,6 +186,18 @@ export function rtcSockets(socket) {
     }
   });
 
+}
+
+// Send a message over the WebRTC data channel with encryption
+export async function sendP2PMessage(text) {
+  if (!dataChannel || dataChannel.readyState !== 'open') return false;
+  const partner = getCurrentChatPartner();
+  let payload = text;
+  if (partner.id && hasKeyForFriend(partner.id)) {
+    payload = await encryptMessage(text, partner.id);
+  }
+  dataChannel.send(payload);
+  return true;
 }
 
 export const endCall = () => {

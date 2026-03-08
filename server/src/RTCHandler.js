@@ -22,6 +22,10 @@ import {
     clearPendingMessages,
     getPendingMessageCount
 } from "./messageQueue.js";
+import {
+    queueKeyExchange,
+    getPendingKeyExchanges
+} from "./pendingKeyExchanges.js";
 
 // Storage for WebRTC calls - now supports multiple concurrent connections
 // Key format: "userId1:userId2" (sorted alphabetically to ensure consistency)
@@ -113,6 +117,12 @@ export function PeerChatting(socket) {
                 socket.emit('friendRequests', requestsWithDetails);
             }
 
+            // Deliver any pending key exchanges (from friend requests accepted while offline)
+            const pendingExchanges = getPendingKeyExchanges(isUserLoggedIn.id);
+            pendingExchanges.forEach(({ friendId, publicKey }) => {
+                socket.emit('keyExchange', { friendId, publicKey });
+            });
+
             // Send pending messages
             const pendingMessages = getPendingMessages(isUserLoggedIn.id);
             if (pendingMessages.length > 0) {
@@ -190,7 +200,7 @@ export function PeerChatting(socket) {
 
     // Friend request handlers
     socket.on('sendFriendRequest', (data) => {
-        const { fromUserId, toUserId } = data;
+        const { fromUserId, toUserId, senderPublicKey } = data;
         console.log(`Friend request: ${fromUserId} -> ${toUserId}`);
 
         // Check if already friends
@@ -202,7 +212,7 @@ export function PeerChatting(socket) {
             return;
         }
 
-        const result = sendFriendRequest(fromUserId, toUserId);
+        const result = sendFriendRequest(fromUserId, toUserId, senderPublicKey);
         socket.emit('friendRequestSent', result);
 
         // If recipient is online, notify them in real-time
@@ -232,7 +242,7 @@ export function PeerChatting(socket) {
     });
 
     socket.on('acceptFriendRequest', (data) => {
-        const { userId, fromUserId } = data;
+        const { userId, fromUserId, accepterPublicKey } = data;
         console.log(`Accept friend request: ${userId} accepting ${fromUserId}`);
 
         const result = acceptFriendRequest(userId, fromUserId);
@@ -247,6 +257,11 @@ export function PeerChatting(socket) {
             socket.emit('friendsList', friends);
             socket.emit('friendRequestAccepted', { success: true, friendId: fromUserId });
 
+            // Give the accepter the requester's public key so they can derive the shared key
+            if (result.senderPublicKey) {
+                socket.emit('keyExchange', { friendId: fromUserId, publicKey: result.senderPublicKey });
+            }
+
             // If the requester is online, add friend and notify them
             if (isUserOnline(fromUserId)) {
                 addFriend(fromUserId, userId);
@@ -259,9 +274,17 @@ export function PeerChatting(socket) {
                     userId: userId,
                     user: getUserById(userId)
                 });
+
+                // Send the accepter's public key to the requester so they can derive the shared key
+                if (accepterPublicKey) {
+                    io.to(requesterSocketId).emit('keyExchange', { friendId: userId, publicKey: accepterPublicKey });
+                }
             } else {
-                // Requester is offline, add to pending additions
+                // Requester is offline — queue both friend addition and key exchange
                 addPendingFriendAddition(fromUserId, userId);
+                if (accepterPublicKey) {
+                    queueKeyExchange(fromUserId, userId, accepterPublicKey);
+                }
             }
 
             // Send updated friend requests list

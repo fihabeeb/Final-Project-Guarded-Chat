@@ -12,7 +12,7 @@ const pendingFriendAdditions = new Map();
  * @param {string} toUserId - The recipient's ID
  * @returns {object} Result with success status and message
  */
-export function sendFriendRequest(fromUserId, toUserId) {
+export function sendFriendRequest(fromUserId, toUserId, senderPublicKey) {
   if (fromUserId === toUserId) {
     return { success: false, message: "Cannot send friend request to yourself" };
   }
@@ -30,10 +30,11 @@ export function sendFriendRequest(fromUserId, toUserId) {
     return { success: false, message: "Friend request already sent" };
   }
 
-  // Add the request
+  // Add the request, storing the sender's ECDH public key for key exchange on acceptance
   requests.push({
     from: fromUserId,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    senderPublicKey: senderPublicKey || null
   });
 
   console.log(`Friend request sent: ${fromUserId} -> ${toUserId}`);
@@ -70,11 +71,12 @@ export function acceptFriendRequest(userId, fromUserId) {
     return { success: false, message: "Friend request not found" };
   }
 
-  // Remove the request
+  // Capture public key before removing the request
+  const senderPublicKey = requests[requestIndex].senderPublicKey;
   requests.splice(requestIndex, 1);
 
   console.log(`Friend request accepted: ${userId} accepted ${fromUserId}`);
-  return { success: true, fromUserId };
+  return { success: true, fromUserId, senderPublicKey };
 }
 
 /**

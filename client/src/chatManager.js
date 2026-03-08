@@ -1,5 +1,6 @@
 import { socket } from './socketIO.js';
 import { addMessage } from './chatHistoryHandler.js';
+import { encryptMessage, decryptMessage, hasKeyForFriend } from './encryption.js';
 
 let currentUserId = null;
 let currentChatPartnerId = null;
@@ -62,7 +63,7 @@ export function getCurrentChatPartner() {
   };
 }
 
-export function sendMessage(message) {
+export async function sendMessage(message) {
   if (!currentUserId) {
     console.error('User not logged in');
     return false;
@@ -74,24 +75,39 @@ export function sendMessage(message) {
     return false;
   }
 
-  // Send message through server
+  let payload = message;
+  if (hasKeyForFriend(currentChatPartnerId)) {
+    payload = await encryptMessage(message, currentChatPartnerId);
+  } else {
+    console.warn('[Encryption] No key for partner — sending plaintext');
+  }
+
   socket.emit('chat message', {
     fromUserId: currentUserId,
     toUserId: currentChatPartnerId,
-    message: message
+    message: payload
   });
 
-  // Add message to your own chat
+  // Always display our own message as plaintext locally
   addMessage('You', message, 'self');
 
-  console.log(`Message sent to ${currentChatPartnerName}: ${message}`);
+  console.log(`Message sent to ${currentChatPartnerName}`);
   return true;
 }
 
 export function setupMessageListeners() {
   // Receive messages from others
-  socket.on('chat message', (data) => {
-    console.log('Message received:', data);
+  socket.on('chat message', async (data) => {
+    console.log('Message received (encrypted)');
+
+    if (hasKeyForFriend(data.from)) {
+      try {
+        data.message = await decryptMessage(data.message, data.from);
+      } catch (e) {
+        console.error('[Encryption] Decryption failed:', e);
+        data.message = '[could not decrypt message]';
+      }
+    }
 
     // Add message to chat if it's from current chat partner
     if (data.from === currentChatPartnerId) {
@@ -104,9 +120,7 @@ export function setupMessageListeners() {
       pendingMessagesByUser.get(data.from).push(data);
       updatePendingBadge(data.from, pendingMessagesByUser.get(data.from).length);
 
-      console.log(`Message from ${data.fromName} stored for later (not current chat): ${data.message}`);
-
-      // Could show a notification badge on the contact here
+      console.log(`Message from ${data.fromName} stored for later`);
     }
   });
 
@@ -117,37 +131,48 @@ export function setupMessageListeners() {
   });
 
   // Handle pending messages on login
-  socket.on('pending messages', (messages) => {
-    console.log('Received pending messages:', messages);
+  socket.on('pending messages', async (messages) => {
+    console.log(`Received ${messages.length} pending messages (encrypted)`);
 
-    if (messages.length > 0) {
-      // Group messages by sender
-      const groupedMessages = {};
-      messages.forEach(msg => {
-        if (!groupedMessages[msg.from]) {
-          groupedMessages[msg.from] = [];
+    if (messages.length === 0) return;
+
+    // Decrypt all messages first
+    const decrypted = await Promise.all(messages.map(async msg => {
+      if (hasKeyForFriend(msg.from)) {
+        try {
+          msg.message = await decryptMessage(msg.message, msg.from);
+        } catch (e) {
+          console.error('[Encryption] Failed to decrypt pending message:', e);
+          msg.message = '[could not decrypt message]';
         }
-        groupedMessages[msg.from].push(msg);
-      });
-
-      // Store pending messages for later display and show badges
-      Object.keys(groupedMessages).forEach(senderId => {
-        if (!pendingMessagesByUser.has(senderId)) {
-          pendingMessagesByUser.set(senderId, []);
-        }
-        const userMessages = pendingMessagesByUser.get(senderId);
-        userMessages.push(...groupedMessages[senderId]);
-        updatePendingBadge(senderId, userMessages.length);
-      });
-
-      // If currently chatting with one of the senders, display those messages immediately
-      if (currentChatPartnerId && groupedMessages[currentChatPartnerId]) {
-        groupedMessages[currentChatPartnerId].forEach(msg => {
-          addMessage(msg.fromName, msg.message, 'other');
-        });
-        pendingMessagesByUser.delete(currentChatPartnerId);
-        updatePendingBadge(currentChatPartnerId, 0);
       }
+      return msg;
+    }));
+
+    // Group by sender
+    const groupedMessages = {};
+    decrypted.forEach(msg => {
+      if (!groupedMessages[msg.from]) groupedMessages[msg.from] = [];
+      groupedMessages[msg.from].push(msg);
+    });
+
+    // Store and badge
+    Object.keys(groupedMessages).forEach(senderId => {
+      if (!pendingMessagesByUser.has(senderId)) {
+        pendingMessagesByUser.set(senderId, []);
+      }
+      const userMessages = pendingMessagesByUser.get(senderId);
+      userMessages.push(...groupedMessages[senderId]);
+      updatePendingBadge(senderId, userMessages.length);
+    });
+
+    // If currently chatting with one of the senders, display immediately
+    if (currentChatPartnerId && groupedMessages[currentChatPartnerId]) {
+      groupedMessages[currentChatPartnerId].forEach(msg => {
+        addMessage(msg.fromName, msg.message, 'other');
+      });
+      pendingMessagesByUser.delete(currentChatPartnerId);
+      updatePendingBadge(currentChatPartnerId, 0);
     }
   });
 

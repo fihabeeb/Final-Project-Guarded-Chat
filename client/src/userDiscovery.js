@@ -1,5 +1,6 @@
 import { socket } from './socketIO.js';
 import { addFriendToSidebar, getCurrentUserId } from './sidebar.js';
+import { getMyPublicKeyJWK } from './encryption.js';
 
 const discoveryModal = document.getElementById('discoveryModal');
 const discoveryButton = document.getElementById('discoverButton');
@@ -103,7 +104,7 @@ function displaySearchResults(results) {
   });
 }
 
-function startChatWithUser(userId, userName) {
+async function startChatWithUser(userId, userName) {
   const currentUserId = getCurrentUserId();
 
   if (!currentUserId) {
@@ -117,10 +118,12 @@ function startChatWithUser(userId, userName) {
     return;
   }
 
-  // Send friend request instead of directly adding
+  // Include our ECDH public key so the accepter can derive the shared key
+  const senderPublicKey = await getMyPublicKeyJWK();
   socket.emit('sendFriendRequest', {
     fromUserId: currentUserId,
-    toUserId: userId
+    toUserId: userId,
+    senderPublicKey
   });
 
   // Close discovery modal

@@ -10,6 +10,10 @@ import { addMessage } from './chatHistoryHandler.js';
 import { userDiscoveryListeners } from './userDiscovery.js';
 import { friendRequestsListeners } from './friendRequests.js';
 import { sendMessage, setupMessageListeners } from './chatManager.js';
+import { initECDHKeyPair } from './encryption.js';
+
+// Initialise ECDH key pair on startup (generates once, reuses on subsequent loads)
+initECDHKeyPair().catch(e => console.error('[Encryption] Key init failed:', e));
 
 // DOM Elements
 const form = document.getElementById("form");
@@ -28,21 +32,16 @@ friendRequestsListeners();
 setupMessageListeners();
 
 // Sending a message
-form.addEventListener("submit", function (e) {
+form.addEventListener("submit", async function (e) {
   e.preventDefault();
   if (input.value) {
     const message = input.value;
-    console.log('Sending message:', message);
+    input.value = "";
 
-    // Use server-based messaging for multi-user support
-    // WebRTC P2P can be added as an enhancement later
-    const sent = sendMessage(message);
+    const sent = await sendMessage(message);
     if (!sent) {
       console.error('Failed to send message');
-      return;
     }
-
-    input.value = "";
   }
 });
 

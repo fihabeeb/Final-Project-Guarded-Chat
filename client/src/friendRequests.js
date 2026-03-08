@@ -1,4 +1,5 @@
 import { socket } from './socketIO.js';
+import { getMyPublicKeyJWK, deriveAndStoreSharedKey } from './encryption.js';
 
 const friendRequestsModal = document.getElementById('friendRequestsModal');
 const friendRequestsButton = document.getElementById('friendRequestsButton');
@@ -68,6 +69,16 @@ export function friendRequestsListeners() {
       console.log('Friend request rejected');
     }
   });
+
+  // Receive the other party's ECDH public key and derive the shared AES key
+  socket.on('keyExchange', async ({ friendId, publicKey }) => {
+    try {
+      await deriveAndStoreSharedKey(friendId, publicKey);
+      console.log(`[Encryption] Key exchange complete with ${friendId}`);
+    } catch (e) {
+      console.error('[Encryption] Key exchange failed:', e);
+    }
+  });
 }
 
 export function setCurrentUserId(userId) {
@@ -121,15 +132,18 @@ function displayFriendRequests(requests) {
   });
 }
 
-function acceptFriendRequest(fromUserId) {
+async function acceptFriendRequest(fromUserId) {
   if (!currentUserId) {
     console.error('No current user ID');
     return;
   }
 
+  // Include our ECDH public key so the requester can derive the shared key
+  const accepterPublicKey = await getMyPublicKeyJWK();
   socket.emit('acceptFriendRequest', {
     userId: currentUserId,
-    fromUserId: fromUserId
+    fromUserId: fromUserId,
+    accepterPublicKey
   });
 }
 
