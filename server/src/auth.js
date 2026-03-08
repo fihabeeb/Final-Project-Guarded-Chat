@@ -1,17 +1,17 @@
+// 'username' is the unique login identifier; 'name' is the display name and may be shared.
 const accounts = [
-  { name: 'Alice', password: '123', id: 'alice1'},
-  { name: 'Bob', password: '456', id: 'bob2' },
-  { name: 'Charlie', password: '789', id: 'charlie3'},
-  { name: 'Dan', password: 'abc', id: 'dan4'},
-  { name: 'Eve', password: 'def', id: 'eve5'},
+  { username: 'alice', name: 'Alice', password: '123', id: 'alice1'},
+  { username: 'bob',   name: 'Bob',   password: '456', id: 'bob2' },
+  { username: 'charlie', name: 'Charlie', password: '789', id: 'charlie3'},
+  { username: 'dan',   name: 'Dan',   password: 'abc', id: 'dan4'},
+  { username: 'eve',   name: 'Eve',   password: 'def', id: 'eve5'},
 ];
 
 
-export function authenticateUser(nameIn, passwordIn) {
+export function authenticateUser(usernameIn, passwordIn) {
   for (let i = 0; i < accounts.length; i++) {
-    console.log("Authenticating user: " + nameIn);
-    console.log("Provided Password: " + passwordIn);
-    if (accounts[i].name == nameIn && accounts[i].password == passwordIn) {
+    console.log("Authenticating user: " + usernameIn);
+    if (accounts[i].username === usernameIn && accounts[i].password === passwordIn) {
       return accounts[i];
     }
   }

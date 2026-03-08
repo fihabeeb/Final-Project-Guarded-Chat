@@ -73,7 +73,7 @@ export function renderFriendsList(friends) {
             <div class="contact-avatar">${friend.name[0].toUpperCase()}</div>
             <div class="contact-info">
                 <div class="contact-name">${friend.name}</div>
-                <div class="contact-status">Available</div>
+                <div class="contact-status">@${friend.id}</div>
             </div>
         `;
         sidebar.appendChild(div);

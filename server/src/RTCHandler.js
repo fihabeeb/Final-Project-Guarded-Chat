@@ -87,6 +87,7 @@ export function PeerChatting(socket) {
 
             socket.emit('login-approved', {
                 name: isUserLoggedIn.name,
+                username: isUserLoggedIn.username,
                 id: isUserLoggedIn.id
             });
 

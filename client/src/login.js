@@ -71,7 +71,7 @@ export function ifLoginApproved() {
         loggedIn = true;
         addMessage('System', `Logged in as ${user.name}`, 'system');
 
-        localStorage.setItem('username', user.name);
+        localStorage.setItem('username', user.username);
         localStorage.setItem('userId', user.id);
         localStorage.setItem('password', tempPassword);
         tempPassword = null;
