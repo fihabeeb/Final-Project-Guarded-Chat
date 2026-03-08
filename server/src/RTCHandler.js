@@ -16,32 +16,59 @@ import {
     getUserSocketId,
     getUserIdFromSocket
 } from "./onlineUsers.js";
-// Storage for WebRTC calls
+import {
+    queueMessage,
+    getPendingMessages,
+    clearPendingMessages,
+    getPendingMessageCount
+} from "./messageQueue.js";
+
+// Storage for WebRTC calls - now supports multiple concurrent connections
+// Key format: "userId1:userId2" (sorted alphabetically to ensure consistency)
 const calls = new Map();
-let userCount = 0;
+
 export function PeerChatting(socket) {
     console.log("a user connected:", socket.id);
-    if (userCount === 0) {
-        socket.emit("offerRTCConnection");
-    }
-    else {
-        socket.emit("recieveRTCConnection");
-    }
-    userCount += 1
 
     socket.on("disconnect", () => {
         console.log("user disconnected:", socket.id);
-        userCount -= 1;
 
         // Mark user as offline
         setUserOffline(socket.id);
     });
 
-    // Text chat message handler
-    // Remove the following and replace it with rtc
-    socket.on("chat message", (msg) => {
-        console.log("message: " + msg);
-        //io.emit("chat message", msg);
+    // Chat message handler - supports multiple concurrent chats
+    socket.on("chat message", (data) => {
+        const { fromUserId, toUserId, message } = data;
+        console.log(`Message from ${fromUserId} to ${toUserId}: ${message}`);
+
+        // Check if recipient is online
+        if (isUserOnline(toUserId)) {
+            const recipientSocketId = getUserSocketId(toUserId);
+            const fromUser = getUserById(fromUserId);
+
+            // Send message directly to recipient
+            io.to(recipientSocketId).emit("chat message", {
+                from: fromUserId,
+                fromName: fromUser ? fromUser.name : "Unknown",
+                message: message,
+                timestamp: new Date().toISOString()
+            });
+
+            console.log(`Message delivered to online user ${toUserId}`);
+        } else {
+            // Recipient is offline, queue the message
+            const fromUser = getUserById(fromUserId);
+            queueMessage(toUserId, fromUserId, fromUser ? fromUser.name : "Unknown", message);
+
+            // Confirm to sender that message was queued
+            socket.emit("message queued", {
+                toUserId: toUserId,
+                message: "Message will be delivered when user comes online"
+            });
+
+            console.log(`Message queued for offline user ${toUserId}`);
+        }
     });
 
     socket.on('login-request', (credentialsInput) => {
@@ -84,6 +111,18 @@ export function PeerChatting(socket) {
                     };
                 });
                 socket.emit('friendRequests', requestsWithDetails);
+            }
+
+            // Send pending messages
+            const pendingMessages = getPendingMessages(isUserLoggedIn.id);
+            if (pendingMessages.length > 0) {
+                console.log(`Delivering ${pendingMessages.length} pending messages to ${isUserLoggedIn.id}`);
+
+                // Send all pending messages
+                socket.emit('pending messages', pendingMessages);
+
+                // Clear the message queue after delivery
+                clearPendingMessages(isUserLoggedIn.id);
             }
         }
     })
@@ -261,22 +300,52 @@ export function PeerChatting(socket) {
         }
     });
 
-    // WebRTC signaling handlers
+    // Start chat with specific user (for WebRTC setup)
+    socket.on("start chat", (data) => {
+        const { fromUserId, toUserId } = data;
+        console.log(`Start chat request: ${fromUserId} wants to chat with ${toUserId}`);
+
+        if (isUserOnline(toUserId)) {
+            const recipientSocketId = getUserSocketId(toUserId);
+            const fromUser = getUserById(fromUserId);
+
+            // Notify recipient that someone wants to chat
+            io.to(recipientSocketId).emit("incoming chat", {
+                from: fromUserId,
+                fromName: fromUser ? fromUser.name : "Unknown"
+            });
+
+            // Confirm to sender
+            socket.emit("chat started", { with: toUserId });
+        } else {
+            socket.emit("user offline", { userId: toUserId });
+        }
+    });
+
+    // WebRTC signaling handlers - now supports multiple concurrent connections
     socket.on("webrtc-offer", (data) => {
-        console.log("Received WebRTC offer for call:", data.callId);
+        const { callId, offer, toUserId } = data;
+        console.log("Received WebRTC offer for call:", callId, "to user:", toUserId);
 
         // Store the offer
-        calls.set(data.callId, {
-            offer: data.offer,
+        calls.set(callId, {
+            offer: offer,
             offererId: socket.id,
+            answererUserId: toUserId,
             iceCandidates: {
                 offer: [],
                 answer: [],
             },
         });
 
-        // Broadcast to other users that a call is available
-        socket.broadcast.emit("webrtc-offer", data);
+        // Send offer to specific user if online
+        if (toUserId && isUserOnline(toUserId)) {
+            const recipientSocketId = getUserSocketId(toUserId);
+            io.to(recipientSocketId).emit("webrtc-offer", data);
+        } else {
+            // Broadcast to other users that a call is available (fallback)
+            socket.broadcast.emit("webrtc-offer", data);
+        }
     });
 
     socket.on("webrtc-answer", (data) => {

@@ -1,5 +1,6 @@
 import { changeChatter } from "./chatHistoryHandler.js";
 import { socket } from "./socketIO.js";
+import { setCurrentChatPartner } from "./chatManager.js";
 
 const sidebar = document.querySelector('.sidebar-content');
 let currentUserId = null;
@@ -25,10 +26,21 @@ export function sidebarListeners() {
         document.querySelector('.chat-info h3').textContent = contactName;
         document.querySelector('.chat-avatar').textContent = contactName[0];
 
-        // Find the friend object
+        // Load chat history first, then set current partner so pending messages appear after history
         const friend = friendsList.find(f => f.id === contactId);
         if (friend) {
             changeChatter(friend);
+        }
+
+        // Set current chat partner in chat manager (renders pending messages after history)
+        setCurrentChatPartner(contactId, contactName);
+
+        // Notify server that user wants to start chat (for WebRTC setup)
+        if (currentUserId) {
+            socket.emit('start chat', {
+                fromUserId: currentUserId,
+                toUserId: contactId
+            });
         }
     });
 }

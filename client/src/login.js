@@ -2,6 +2,7 @@ import { socket } from "./socketIO.js";
 import { addMessage } from './chatHistoryHandler.js';
 import { loadFriendsList } from './sidebar.js';
 import { setCurrentUserId } from './friendRequests.js';
+import { setChatManager } from './chatManager.js';
 // Login page handling
 const loginPage = document.getElementById('loginPage');
 const appContainer = document.getElementById('appContainer');
@@ -75,8 +76,9 @@ export function ifLoginApproved() {
         localStorage.setItem('password', tempPassword);
         tempPassword = null;
 
-        // Set current user ID for friend requests
+        // Set current user ID for various modules
         setCurrentUserId(user.id);
+        setChatManager(user.id);
 
         // Load friends list from server
         loadFriendsList(user.id);

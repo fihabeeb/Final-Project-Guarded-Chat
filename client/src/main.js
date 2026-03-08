@@ -9,6 +9,7 @@ import { sidebarListeners } from './sidebar.js';
 import { addMessage } from './chatHistoryHandler.js';
 import { userDiscoveryListeners } from './userDiscovery.js';
 import { friendRequestsListeners } from './friendRequests.js';
+import { sendMessage, setupMessageListeners } from './chatManager.js';
 
 // DOM Elements
 const form = document.getElementById("form");
@@ -24,6 +25,7 @@ settingsListeners();
 sidebarListeners();
 userDiscoveryListeners();
 friendRequestsListeners();
+setupMessageListeners();
 
 // Sending a message
 form.addEventListener("submit", function (e) {
@@ -31,10 +33,15 @@ form.addEventListener("submit", function (e) {
   if (input.value) {
     const message = input.value;
     console.log('Sending message:', message);
-    if (dataChannel && dataChannel.readyState === 'open') {
-      dataChannel.send(message);
-      addMessage('You', message, 'self');
+
+    // Use server-based messaging for multi-user support
+    // WebRTC P2P can be added as an enhancement later
+    const sent = sendMessage(message);
+    if (!sent) {
+      console.error('Failed to send message');
+      return;
     }
+
     input.value = "";
   }
 });
