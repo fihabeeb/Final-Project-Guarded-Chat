@@ -110,6 +110,10 @@ export function getCurrentUserId() {
     return currentUserId;
 }
 
+export function getFriendIds() {
+    return friendsList.map(f => f.id);
+}
+
 export function setContactPeerStatus(contactId, status) {
     const el = document.querySelector(`[data-peer-status="${contactId}"]`);
     if (!el) return;

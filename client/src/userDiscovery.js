@@ -1,5 +1,5 @@
 import { socket } from './socketIO.js';
-import { addFriendToSidebar, getCurrentUserId } from './sidebar.js';
+import { addFriendToSidebar, getCurrentUserId, getFriendIds } from './sidebar.js';
 import { getMyPublicKeyJWK } from './encryption.js';
 
 const discoveryModal = document.getElementById('discoveryModal');
@@ -73,10 +73,19 @@ function searchUsers(query) {
 }
 
 function displaySearchResults(results) {
-  if (results.length === 0) {
+  const currentUserId = getCurrentUserId();
+  const friendIds = getFriendIds();
+
+  const filtered = results.filter(user =>
+    user.id !== currentUserId && !friendIds.includes(user.id)
+  );
+
+  if (filtered.length === 0) {
     showNoResults();
     return;
   }
+
+  results = filtered;
 
   const resultsHTML = results.map(user => `
     <div class="user-result-item" data-user-id="${user.id}">
