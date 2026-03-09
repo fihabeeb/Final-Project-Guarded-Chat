@@ -5,6 +5,7 @@ import { setCurrentChatPartner, reapplyPendingBadges } from "./chatManager.js";
 const sidebar = document.querySelector('.sidebar-content');
 let currentUserId = null;
 let friendsList = [];
+let pendingAutoOpen = false;
 
 export function sidebarListeners() {
     // Listen for friends list from server
@@ -21,41 +22,19 @@ export function sidebarListeners() {
         const item = e.target.closest('.contact-item');
         if (!item) return;
 
-        const contactName = item.dataset.contact;
-        const contactId = item.dataset.contactId;
-
-        // Update chat header
-        document.querySelector('.chat-info h3').textContent = contactName;
-        document.querySelector('.chat-avatar').textContent = contactName[0];
-
-        // Load chat history first, then set current partner so pending messages appear after history
-        const friend = friendsList.find(f => f.id === contactId);
-        if (friend) {
-            changeChatter(friend);
-        }
-
-        // Set current chat partner in chat manager (renders pending messages after history)
-        setCurrentChatPartner(contactId, contactName);
-
-        // Notify server that user wants to start chat (for WebRTC setup)
-        if (currentUserId) {
-            socket.emit('start chat', {
-                fromUserId: currentUserId,
-                toUserId: contactId
-            });
-        }
+        openChat(item.dataset.contactId, item.dataset.contact);
     });
 }
 
 export function loadFriendsList(userId) {
     currentUserId = userId;
+    pendingAutoOpen = true;
 
     const stored = localStorage.getItem(`friends_${userId}`);
     if (stored) {
         const localFriends = JSON.parse(stored);
         friendsList = localFriends;
         renderFriendsList(localFriends);
-        // Rehydrate server's in-memory map for this session
         socket.emit('restoreFriendsList', { userId, friendIds: localFriends.map(f => f.id) });
     } else {
         socket.emit('getFriendsList', userId);
@@ -63,7 +42,6 @@ export function loadFriendsList(userId) {
 }
 
 export function renderFriendsList(friends) {
-    // Clear existing contacts
     sidebar.innerHTML = '';
 
     if (friends.length === 0) {
@@ -91,6 +69,35 @@ export function renderFriendsList(friends) {
     });
 
     reapplyPendingBadges();
+
+    if (pendingAutoOpen) {
+        pendingAutoOpen = false;
+        const lastId = localStorage.getItem('lastChattedWith');
+        if (lastId) {
+            const last = friends.find(f => f.id === lastId);
+            if (last) openChat(last.id, last.name);
+        }
+    }
+}
+
+function openChat(contactId, contactName) {
+    // Update active state
+    document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+    const item = document.querySelector(`.contact-item[data-contact-id="${contactId}"]`);
+    if (item) item.classList.add('active');
+
+    // Update chat header
+    document.querySelector('.chat-info h3').textContent = contactName;
+    document.querySelector('.chat-avatar').textContent = contactName[0];
+
+    const friend = friendsList.find(f => f.id === contactId);
+    if (friend) changeChatter(friend);
+
+    setCurrentChatPartner(contactId, contactName);
+
+    if (currentUserId) {
+        socket.emit('start chat', { fromUserId: currentUserId, toUserId: contactId });
+    }
 }
 
 export function addFriendToSidebar(friend) {
