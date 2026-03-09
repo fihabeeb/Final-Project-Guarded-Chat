@@ -35,8 +35,9 @@ export function videoCallHandler() {
         }
 
         // Generate unique call ID
-        //peerConnectionID = Math.random().toString(36).substring(7);
-        //callIdDisplay.textContent = `Call ID: ${getPeerConnectionId()}\nShare this ID with the person you want to call`;
+        const callId = Math.random().toString(36).substring(2, 8).toUpperCase();
+        setPeerConnectionId(callId);
+        callIdDisplay.textContent = `Call ID: ${callId}`;
     };
 
     // Join Call Button
