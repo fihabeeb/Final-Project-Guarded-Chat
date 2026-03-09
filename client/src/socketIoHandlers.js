@@ -4,7 +4,6 @@ import { updateConnectionStatus } from './uiScript.js';
 export function socketHandlers(socket) {
     // Socket.io connection handlers
     socket.on('connect', () => {
-        console.log('Connected to server!');
         updateConnectionStatus('online');
     });
 
@@ -14,7 +13,6 @@ export function socketHandlers(socket) {
     });
 
     socket.on('disconnect', () => {
-        console.log('Disconnected from server');
         updateConnectionStatus('offline');
     });
 }

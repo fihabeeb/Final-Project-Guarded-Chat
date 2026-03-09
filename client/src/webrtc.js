@@ -61,7 +61,6 @@ function setupDataChannel(channel) {
   };
 
   channel.onmessage = async (event) => {
-    console.log('Received P2P message (encrypted)');
     const partner = getCurrentChatPartner();
     let text = event.data;
     if (partner.id && hasKeyForFriend(partner.id)) {
@@ -140,9 +139,7 @@ export async function recievePeerConnection(socket) {
 
 export function rtcSockets(socket) {
 
-  socket.on('webrtc-offer', async (data) => {
-    console.log('Received offer:', data);
-  });
+  socket.on('webrtc-offer', async () => {});
 
   socket.on('webrtc-answer', async (data) => {
     if (peerConnection && !peerConnection.currentRemoteDescription && data.answer) {

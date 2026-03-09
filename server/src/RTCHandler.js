@@ -42,36 +42,25 @@ export function PeerChatting(socket) {
     });
 
     // Chat message handler - supports multiple concurrent chats
-    socket.on("chat message", (data) => {
+    socket.on("chat message", async (data) => {
         const { fromUserId, toUserId, message } = data;
-        console.log(`Message from ${fromUserId} to ${toUserId}: ${message}`);
 
         // Check if recipient is online
         if (isUserOnline(toUserId)) {
             const recipientSocketId = getUserSocketId(toUserId);
             const fromUser = getUserById(fromUserId);
 
-            // Send message directly to recipient
             io.to(recipientSocketId).emit("chat message", {
                 from: fromUserId,
                 fromName: fromUser ? fromUser.name : "Unknown",
                 message: message,
                 timestamp: new Date().toISOString()
             });
-
-            console.log(`Message delivered to online user ${toUserId}`);
         } else {
-            // Recipient is offline, queue the message
             const fromUser = getUserById(fromUserId);
-            queueMessage(toUserId, fromUserId, fromUser ? fromUser.name : "Unknown", message);
+            await queueMessage(toUserId, fromUserId, fromUser ? fromUser.name : "Unknown", message);
 
-            // Confirm to sender that message was queued
-            socket.emit("message queued", {
-                toUserId: toUserId,
-                message: "Message will be delivered when user comes online"
-            });
-
-            console.log(`Message queued for offline user ${toUserId}`);
+            socket.emit("message queued", { toUserId });
         }
     });
 
@@ -106,48 +95,35 @@ export function PeerChatting(socket) {
             });
 
             // Process any pending friend additions
-            const pendingFriends = getPendingFriendAdditions(isUserLoggedIn.id);
+            const pendingFriends = await getPendingFriendAdditions(isUserLoggedIn.id);
             if (pendingFriends.length > 0) {
-                console.log(`Processing ${pendingFriends.length} pending friend additions for ${isUserLoggedIn.id}`);
-                pendingFriends.forEach(friendId => {
-                    addFriend(isUserLoggedIn.id, friendId);
-                });
-
-                // Send updated friends list
+                pendingFriends.forEach(friendId => addFriend(isUserLoggedIn.id, friendId));
                 const friendIds = getFriendsList(isUserLoggedIn.id);
                 const friends = getUsersByIds(friendIds);
                 socket.emit('friendsList', friends);
             }
 
             // Send pending friend requests
-            const requests = getFriendRequests(isUserLoggedIn.id);
+            const requests = await getFriendRequests(isUserLoggedIn.id);
             if (requests.length > 0) {
-                const requestsWithDetails = requests.map(req => {
-                    const user = getUserById(req.from);
-                    return {
-                        ...req,
-                        fromUser: user
-                    };
-                });
+                const requestsWithDetails = requests.map(req => ({
+                    ...req,
+                    fromUser: getUserById(req.from)
+                }));
                 socket.emit('friendRequests', requestsWithDetails);
             }
 
-            // Deliver any pending key exchanges (from friend requests accepted while offline)
-            const pendingExchanges = getPendingKeyExchanges(isUserLoggedIn.id);
+            // Deliver any pending key exchanges
+            const pendingExchanges = await getPendingKeyExchanges(isUserLoggedIn.id);
             pendingExchanges.forEach(({ friendId, publicKey }) => {
                 socket.emit('keyExchange', { friendId, publicKey });
             });
 
             // Send pending messages
-            const pendingMessages = getPendingMessages(isUserLoggedIn.id);
+            const pendingMessages = await getPendingMessages(isUserLoggedIn.id);
             if (pendingMessages.length > 0) {
-                console.log(`Delivering ${pendingMessages.length} pending messages to ${isUserLoggedIn.id}`);
-
-                // Send all pending messages
                 socket.emit('pending messages', pendingMessages);
-
-                // Clear the message queue after delivery
-                clearPendingMessages(isUserLoggedIn.id);
+                await clearPendingMessages(isUserLoggedIn.id);
             }
         } else {
             socket.emit('login-rejected');
@@ -220,127 +196,92 @@ export function PeerChatting(socket) {
     });
 
     // Friend request handlers
-    socket.on('sendFriendRequest', (data) => {
+    socket.on('sendFriendRequest', async (data) => {
         const { fromUserId, toUserId, senderPublicKey } = data;
-        console.log(`Friend request: ${fromUserId} -> ${toUserId}`);
 
-        // Check if already friends
         if (areFriends(fromUserId, toUserId)) {
-            socket.emit('friendRequestSent', {
-                success: false,
-                message: 'Already friends'
-            });
+            socket.emit('friendRequestSent', { success: false, message: 'Already friends' });
             return;
         }
 
-        const result = sendFriendRequest(fromUserId, toUserId, senderPublicKey);
+        const result = await sendFriendRequest(fromUserId, toUserId, senderPublicKey);
         socket.emit('friendRequestSent', result);
 
-        // If recipient is online, notify them in real-time
         if (result.success && isUserOnline(toUserId)) {
             const recipientSocketId = getUserSocketId(toUserId);
-            const fromUser = getUserById(fromUserId);
-
             io.to(recipientSocketId).emit('newFriendRequest', {
                 from: fromUserId,
-                fromUser: fromUser,
+                fromUser: getUserById(fromUserId),
                 timestamp: new Date().toISOString()
             });
         }
     });
 
-    socket.on('getFriendRequests', (userId) => {
-        console.log(`Get friend requests for: ${userId}`);
-        const requests = getFriendRequests(userId);
-        const requestsWithDetails = requests.map(req => {
-            const user = getUserById(req.from);
-            return {
-                ...req,
-                fromUser: user
-            };
-        });
+    socket.on('getFriendRequests', async (userId) => {
+        const requests = await getFriendRequests(userId);
+        const requestsWithDetails = requests.map(req => ({
+            ...req,
+            fromUser: getUserById(req.from)
+        }));
         socket.emit('friendRequests', requestsWithDetails);
     });
 
-    socket.on('acceptFriendRequest', (data) => {
+    socket.on('acceptFriendRequest', async (data) => {
         const { userId, fromUserId, accepterPublicKey } = data;
-        console.log(`Accept friend request: ${userId} accepting ${fromUserId}`);
 
-        const result = acceptFriendRequest(userId, fromUserId);
+        const result = await acceptFriendRequest(userId, fromUserId);
 
         if (result.success) {
-            // Add both users as friends
             addFriend(userId, fromUserId);
 
-            // Send updated friends list to the accepter
-            const friendIds = getFriendsList(userId);
-            const friends = getUsersByIds(friendIds);
+            const friends = getUsersByIds(getFriendsList(userId));
             socket.emit('friendsList', friends);
             socket.emit('friendRequestAccepted', { success: true, friendId: fromUserId });
 
-            // Give the accepter the requester's public key so they can derive the shared key
             if (result.senderPublicKey) {
                 socket.emit('keyExchange', { friendId: fromUserId, publicKey: result.senderPublicKey });
             }
 
-            // If the requester is online, add friend and notify them
             if (isUserOnline(fromUserId)) {
                 addFriend(fromUserId, userId);
                 const requesterSocketId = getUserSocketId(fromUserId);
-                const requesterFriendIds = getFriendsList(fromUserId);
-                const requesterFriends = getUsersByIds(requesterFriendIds);
-
-                io.to(requesterSocketId).emit('friendsList', requesterFriends);
+                io.to(requesterSocketId).emit('friendsList', getUsersByIds(getFriendsList(fromUserId)));
                 io.to(requesterSocketId).emit('friendRequestAcceptedByOther', {
-                    userId: userId,
+                    userId,
                     user: getUserById(userId)
                 });
-
-                // Send the accepter's public key to the requester so they can derive the shared key
                 if (accepterPublicKey) {
                     io.to(requesterSocketId).emit('keyExchange', { friendId: userId, publicKey: accepterPublicKey });
                 }
             } else {
-                // Requester is offline — queue both friend addition and key exchange
-                addPendingFriendAddition(fromUserId, userId);
+                await addPendingFriendAddition(fromUserId, userId);
                 if (accepterPublicKey) {
-                    queueKeyExchange(fromUserId, userId, accepterPublicKey);
+                    await queueKeyExchange(fromUserId, userId, accepterPublicKey);
                 }
             }
 
-            // Send updated friend requests list
-            const requests = getFriendRequests(userId);
-            const requestsWithDetails = requests.map(req => {
-                const user = getUserById(req.from);
-                return {
-                    ...req,
-                    fromUser: user
-                };
-            });
-            socket.emit('friendRequests', requestsWithDetails);
+            const requests = await getFriendRequests(userId);
+            socket.emit('friendRequests', requests.map(req => ({
+                ...req,
+                fromUser: getUserById(req.from)
+            })));
         } else {
             socket.emit('friendRequestAccepted', result);
         }
     });
 
-    socket.on('rejectFriendRequest', (data) => {
+    socket.on('rejectFriendRequest', async (data) => {
         const { userId, fromUserId } = data;
-        console.log(`Reject friend request: ${userId} rejecting ${fromUserId}`);
 
-        const result = rejectFriendRequest(userId, fromUserId);
+        const result = await rejectFriendRequest(userId, fromUserId);
         socket.emit('friendRequestRejected', result);
 
         if (result.success) {
-            // Send updated friend requests list
-            const requests = getFriendRequests(userId);
-            const requestsWithDetails = requests.map(req => {
-                const user = getUserById(req.from);
-                return {
-                    ...req,
-                    fromUser: user
-                };
-            });
-            socket.emit('friendRequests', requestsWithDetails);
+            const requests = await getFriendRequests(userId);
+            socket.emit('friendRequests', requests.map(req => ({
+                ...req,
+                fromUser: getUserById(req.from)
+            })));
         }
     });
 

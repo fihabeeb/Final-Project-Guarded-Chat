@@ -1,19 +1,18 @@
-// Queue for delivering ECDH public keys to users who were offline when a friend request was accepted.
-// Structure: { userId: [{ friendId, publicKey }, ...] }
-const pendingKeyExchanges = new Map();
+import pool from './db.js';
 
-export function queueKeyExchange(userId, friendId, publicKey) {
-  if (!pendingKeyExchanges.has(userId)) {
-    pendingKeyExchanges.set(userId, []);
-  }
-  pendingKeyExchanges.get(userId).push({ friendId, publicKey });
-  console.log(`[KeyExchange] Queued for offline user ${userId} from ${friendId}`);
+export async function queueKeyExchange(userId, friendId, publicKey) {
+  await pool.query(
+    `INSERT INTO pending_key_exchanges (user_id, friend_id, public_key)
+     VALUES ($1, $2, $3) ON CONFLICT (user_id, friend_id) DO UPDATE SET public_key = $3`,
+    [userId, friendId, publicKey]
+  );
 }
 
-// Returns and clears all pending key exchanges for a user.
-export function getPendingKeyExchanges(userId) {
-  if (!pendingKeyExchanges.has(userId)) return [];
-  const exchanges = pendingKeyExchanges.get(userId);
-  pendingKeyExchanges.delete(userId);
-  return exchanges;
+export async function getPendingKeyExchanges(userId) {
+  const { rows } = await pool.query(
+    `DELETE FROM pending_key_exchanges WHERE user_id = $1
+     RETURNING friend_id AS "friendId", public_key AS "publicKey"`,
+    [userId]
+  );
+  return rows;
 }

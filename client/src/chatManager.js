@@ -41,12 +41,10 @@ export function reapplyPendingBadges() {
 export function setCurrentChatPartner(partnerId, partnerName) {
   currentChatPartnerId = partnerId;
   currentChatPartnerName = partnerName;
-  console.log(`Now chatting with: ${partnerName} (${partnerId})`);
 
   // Check if there are any pending messages from this user
   if (pendingMessagesByUser.has(partnerId)) {
     const messages = pendingMessagesByUser.get(partnerId);
-    console.log(`Loading ${messages.length} pending messages from ${partnerName}`);
 
     // Display all pending messages
     messages.forEach(msg => {
@@ -93,18 +91,13 @@ export async function sendMessage(message) {
     });
   }
 
-  // Always display our own message as plaintext locally
   addMessage('You', message, 'self');
-
-  console.log(`Message sent to ${currentChatPartnerName}`);
   return true;
 }
 
 export function setupMessageListeners() {
   // Receive messages from others
   socket.on('chat message', async (data) => {
-    console.log('Message received (encrypted)');
-
     if (hasKeyForFriend(data.from)) {
       try {
         data.message = await decryptMessage(data.message, data.from);
@@ -130,15 +123,10 @@ export function setupMessageListeners() {
     }
   });
 
-  // Handle queued message confirmation
-  socket.on('message queued', (data) => {
-    console.log('Message queued for offline user:', data);
-    // Could show a "Message will be delivered when user comes online" indicator
-  });
+  socket.on('message queued', () => {});
 
   // Handle pending messages on login
   socket.on('pending messages', async (messages) => {
-    console.log(`Received ${messages.length} pending messages (encrypted)`);
 
     if (messages.length === 0) return;
 
@@ -188,13 +176,8 @@ export function setupMessageListeners() {
   });
 
   // Handle incoming chat requests
-  socket.on('incoming chat', (data) => {
-    console.log('Incoming chat from:', data.fromName);
-    // Could show notification or automatically open chat
-  });
+  socket.on('incoming chat', () => {});
 
   // Handle chat started confirmation
-  socket.on('chat started', (data) => {
-    console.log('Chat started with:', data.with);
-  });
+  socket.on('chat started', () => {});
 }

@@ -2,7 +2,6 @@
 
 ## Features
 
-- **Server-side persistence**: Friend requests, message queue, and pending key exchanges are all in-memory only — lost on server restart
 - **Typing indicators**: Not implemented
 - **Read receipts**: Not implemented
 
@@ -13,8 +12,6 @@
 
 ## Polish / Pre-submission
 
-- Remove all `console.log` debug statements from client code
-- Remove unused Firebase dependency from client
 - Test full flow end-to-end: register → add friend → key exchange → encrypted message → P2P chat → video call
 
 ---

@@ -1,172 +1,72 @@
-// Friend requests storage
-// Structure: { userId: [{ from: senderId, timestamp: Date }, ...] }
-const friendRequests = new Map();
+import pool from './db.js';
 
-// Pending friend additions (for when requester is offline)
-// Structure: { userId: [friendId1, friendId2, ...] }
-const pendingFriendAdditions = new Map();
-
-/**
- * Send a friend request
- * @param {string} fromUserId - The sender's ID
- * @param {string} toUserId - The recipient's ID
- * @returns {object} Result with success status and message
- */
-export function sendFriendRequest(fromUserId, toUserId, senderPublicKey) {
+export async function sendFriendRequest(fromUserId, toUserId, senderPublicKey) {
   if (fromUserId === toUserId) {
-    return { success: false, message: "Cannot send friend request to yourself" };
+    return { success: false, message: 'Cannot send friend request to yourself' };
   }
-
-  // Get recipient's requests
-  if (!friendRequests.has(toUserId)) {
-    friendRequests.set(toUserId, []);
-  }
-
-  const requests = friendRequests.get(toUserId);
-
-  // Check if request already exists
-  const existingRequest = requests.find(req => req.from === fromUserId);
-  if (existingRequest) {
-    return { success: false, message: "Friend request already sent" };
-  }
-
-  // Add the request, storing the sender's ECDH public key for key exchange on acceptance
-  requests.push({
-    from: fromUserId,
-    timestamp: new Date().toISOString(),
-    senderPublicKey: senderPublicKey || null
-  });
-
-  console.log(`Friend request sent: ${fromUserId} -> ${toUserId}`);
-  return { success: true, message: "Friend request sent" };
-}
-
-/**
- * Get all pending friend requests for a user
- * @param {string} userId - The user's ID
- * @returns {Array} Array of friend requests
- */
-export function getFriendRequests(userId) {
-  if (!friendRequests.has(userId)) {
-    return [];
-  }
-  return friendRequests.get(userId);
-}
-
-/**
- * Accept a friend request
- * @param {string} userId - The user accepting the request
- * @param {string} fromUserId - The user who sent the request
- * @returns {object} Result with success status
- */
-export function acceptFriendRequest(userId, fromUserId) {
-  if (!friendRequests.has(userId)) {
-    return { success: false, message: "No friend requests found" };
-  }
-
-  const requests = friendRequests.get(userId);
-  const requestIndex = requests.findIndex(req => req.from === fromUserId);
-
-  if (requestIndex === -1) {
-    return { success: false, message: "Friend request not found" };
-  }
-
-  // Capture public key before removing the request
-  const senderPublicKey = requests[requestIndex].senderPublicKey;
-  requests.splice(requestIndex, 1);
-
-  console.log(`Friend request accepted: ${userId} accepted ${fromUserId}`);
-  return { success: true, fromUserId, senderPublicKey };
-}
-
-/**
- * Reject a friend request
- * @param {string} userId - The user rejecting the request
- * @param {string} fromUserId - The user who sent the request
- * @returns {object} Result with success status
- */
-export function rejectFriendRequest(userId, fromUserId) {
-  if (!friendRequests.has(userId)) {
-    return { success: false, message: "No friend requests found" };
-  }
-
-  const requests = friendRequests.get(userId);
-  const requestIndex = requests.findIndex(req => req.from === fromUserId);
-
-  if (requestIndex === -1) {
-    return { success: false, message: "Friend request not found" };
-  }
-
-  // Remove the request
-  requests.splice(requestIndex, 1);
-
-  console.log(`Friend request rejected: ${userId} rejected ${fromUserId}`);
-  return { success: true };
-}
-
-/**
- * Add a pending friend addition (for when user is offline)
- * @param {string} userId - The user who will receive the friend
- * @param {string} friendId - The friend to add
- */
-export function addPendingFriendAddition(userId, friendId) {
-  if (!pendingFriendAdditions.has(userId)) {
-    pendingFriendAdditions.set(userId, []);
-  }
-
-  const pending = pendingFriendAdditions.get(userId);
-
-  // Only add if not already pending
-  if (!pending.includes(friendId)) {
-    pending.push(friendId);
-    console.log(`Pending friend addition: ${friendId} will be added to ${userId} when they come online`);
+  try {
+    await pool.query(
+      `INSERT INTO friend_requests (from_user_id, to_user_id, sender_public_key)
+       VALUES ($1, $2, $3)
+       ON CONFLICT DO NOTHING`,
+      [fromUserId, toUserId, senderPublicKey || null]
+    );
+    return { success: true, message: 'Friend request sent' };
+  } catch (e) {
+    return { success: false, message: 'Friend request already sent' };
   }
 }
 
-/**
- * Get and clear pending friend additions for a user
- * @param {string} userId - The user's ID
- * @returns {Array} Array of friend IDs to add
- */
-export function getPendingFriendAdditions(userId) {
-  if (!pendingFriendAdditions.has(userId)) {
-    return [];
+export async function getFriendRequests(userId) {
+  const { rows } = await pool.query(
+    `SELECT from_user_id AS "from", sender_public_key AS "senderPublicKey", created_at AS "timestamp"
+     FROM friend_requests WHERE to_user_id = $1`,
+    [userId]
+  );
+  return rows;
+}
+
+export async function acceptFriendRequest(userId, fromUserId) {
+  const { rows } = await pool.query(
+    `DELETE FROM friend_requests
+     WHERE to_user_id = $1 AND from_user_id = $2
+     RETURNING sender_public_key AS "senderPublicKey"`,
+    [userId, fromUserId]
+  );
+  if (rows.length === 0) {
+    return { success: false, message: 'Friend request not found' };
   }
-
-  const pending = pendingFriendAdditions.get(userId);
-  // Clear the pending list
-  pendingFriendAdditions.set(userId, []);
-
-  return pending;
+  return { success: true, fromUserId, senderPublicKey: rows[0].senderPublicKey };
 }
 
-/**
- * Check if a friend request exists
- * @param {string} fromUserId - The sender's ID
- * @param {string} toUserId - The recipient's ID
- * @returns {boolean} True if request exists
- */
-export function hasFriendRequest(fromUserId, toUserId) {
-  if (!friendRequests.has(toUserId)) {
-    return false;
-  }
-
-  const requests = friendRequests.get(toUserId);
-  return requests.some(req => req.from === fromUserId);
+export async function rejectFriendRequest(userId, fromUserId) {
+  const { rowCount } = await pool.query(
+    `DELETE FROM friend_requests WHERE to_user_id = $1 AND from_user_id = $2`,
+    [userId, fromUserId]
+  );
+  return rowCount > 0 ? { success: true } : { success: false, message: 'Friend request not found' };
 }
 
-/**
- * Get all friend requests (for debugging)
- * @returns {Map} All friend requests
- */
-export function getAllFriendRequests() {
-  return friendRequests;
+export async function hasFriendRequest(fromUserId, toUserId) {
+  const { rowCount } = await pool.query(
+    `SELECT 1 FROM friend_requests WHERE from_user_id = $1 AND to_user_id = $2`,
+    [fromUserId, toUserId]
+  );
+  return rowCount > 0;
 }
 
-/**
- * Get all pending friend additions (for debugging)
- * @returns {Map} All pending friend additions
- */
-export function getAllPendingAdditions() {
-  return pendingFriendAdditions;
+export async function addPendingFriendAddition(userId, friendId) {
+  await pool.query(
+    `INSERT INTO pending_friend_additions (user_id, friend_id)
+     VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+    [userId, friendId]
+  );
+}
+
+export async function getPendingFriendAdditions(userId) {
+  const { rows } = await pool.query(
+    `DELETE FROM pending_friend_additions WHERE user_id = $1 RETURNING friend_id`,
+    [userId]
+  );
+  return rows.map(r => r.friend_id);
 }

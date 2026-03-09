@@ -33,7 +33,6 @@ export function friendRequestsListeners() {
 
   // Listen for friend requests from server
   socket.on('friendRequests', (requests) => {
-    console.log('Received friend requests:', requests);
     pendingRequests = requests;
     displayFriendRequests(requests);
     updateBadge(requests.length);
@@ -41,7 +40,6 @@ export function friendRequestsListeners() {
 
   // Listen for new friend requests in real-time
   socket.on('newFriendRequest', (request) => {
-    console.log('New friend request received:', request);
     pendingRequests.push(request);
     displayFriendRequests(pendingRequests);
     updateBadge(pendingRequests.length);
@@ -51,30 +49,20 @@ export function friendRequestsListeners() {
   });
 
   // Listen for friend request accepted confirmation
-  socket.on('friendRequestAccepted', (result) => {
-    if (result.success) {
-      console.log('Friend request accepted successfully');
-    }
-  });
+  socket.on('friendRequestAccepted', () => {});
 
   // Listen for when someone accepts your friend request
   socket.on('friendRequestAcceptedByOther', (data) => {
-    console.log('Your friend request was accepted by:', data.user.name);
     showNotification(`${data.user.name} accepted your friend request!`);
   });
 
   // Listen for friend request rejected confirmation
-  socket.on('friendRequestRejected', (result) => {
-    if (result.success) {
-      console.log('Friend request rejected');
-    }
-  });
+  socket.on('friendRequestRejected', () => {});
 
   // Receive the other party's ECDH public key and derive the shared AES key
   socket.on('keyExchange', async ({ friendId, publicKey }) => {
     try {
       await deriveAndStoreSharedKey(friendId, publicKey);
-      console.log(`[Encryption] Key exchange complete with ${friendId}`);
     } catch (e) {
       console.error('[Encryption] Key exchange failed:', e);
     }
@@ -199,10 +187,7 @@ function getTimeAgo(timestamp) {
 }
 
 function showNotification(message) {
-  // Simple alert for now - could be replaced with a toast notification
   if (Notification.permission === 'granted') {
     new Notification('Guarded Chat', { body: message });
-  } else {
-    console.log('Notification:', message);
   }
 }

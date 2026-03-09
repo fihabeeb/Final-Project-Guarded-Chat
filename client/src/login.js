@@ -138,7 +138,6 @@ export function logout() {
 
 export function ifLoginApproved() {
     socket.on('login-approved', (user) => {
-        console.log("Logged in: " + user.name);
         onLoginSuccess(user);
     });
 

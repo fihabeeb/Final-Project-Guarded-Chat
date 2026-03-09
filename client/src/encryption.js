@@ -8,7 +8,6 @@ const PUBLIC_KEY_STORAGE = 'ecdhPublicKey';
 // Generate an ECDH P-256 key pair on first use, or load the existing one.
 export async function initECDHKeyPair() {
   if (localStorage.getItem(PRIVATE_KEY_STORAGE) && localStorage.getItem(PUBLIC_KEY_STORAGE)) {
-    console.log('[Crypto] ECDH key pair already exists');
     return;
   }
   const keyPair = await crypto.subtle.generateKey(
@@ -20,7 +19,6 @@ export async function initECDHKeyPair() {
   const publicJWK = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
   localStorage.setItem(PRIVATE_KEY_STORAGE, JSON.stringify(privateJWK));
   localStorage.setItem(PUBLIC_KEY_STORAGE, JSON.stringify(publicJWK));
-  console.log('[Crypto] Generated new ECDH key pair');
 }
 
 // Returns the user's ECDH public key as a JWK object (safe to send to server/peer).
@@ -57,7 +55,6 @@ export async function deriveAndStoreSharedKey(friendId, theirPublicKeyJWK) {
   );
   const aesJWK = await crypto.subtle.exportKey('jwk', aesKey);
   localStorage.setItem(`encKey_${friendId}`, JSON.stringify(aesJWK));
-  console.log(`[Crypto] Shared AES-256-GCM key derived and stored for ${friendId}`);
 }
 
 export function hasKeyForFriend(friendId) {

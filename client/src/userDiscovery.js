@@ -137,8 +137,6 @@ async function startChatWithUser(userId, userName) {
 
   // Close discovery modal
   closeDiscoveryModal();
-
-  console.log(`Friend request sent to ${userName} (${userId})`);
 }
 
 function showEmptyState() {
