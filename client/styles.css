@@ -1,3 +1,7 @@
+:root {
+  --msg-font-size: 14.5px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -282,7 +286,7 @@ body {
 
 .message-text {
   color: #e9edef;
-  font-size: 14.5px;
+  font-size: var(--msg-font-size);
   line-height: 1.4;
 }
 
@@ -1233,6 +1237,73 @@ body {
 .search-no-results p {
   font-size: 14px;
 }
+
+/* Light Theme */
+body.theme-light { background: #f0f2f5; }
+body.theme-light .app-container { background: #f0f2f5; }
+body.theme-light .sidebar { background: #f0f2f5; border-right-color: #e9edef; }
+body.theme-light .sidebar-header { background: #ffffff; }
+body.theme-light .sidebar-header h2 { color: #111b21; }
+body.theme-light .sidebar-content { background: #f0f2f5; }
+body.theme-light .contact-item { border-bottom-color: #e9edef; }
+body.theme-light .contact-item:hover { background: #ffffff; }
+body.theme-light .contact-item.active { background: #e9edef; }
+body.theme-light .contact-name { color: #111b21; }
+body.theme-light .contact-status { color: #667781; }
+body.theme-light .chat-container { background: #efeae2; }
+body.theme-light .chat-header { background: #ffffff; border-bottom-color: #e9edef; }
+body.theme-light .chat-info h3 { color: #111b21; }
+body.theme-light .chat-info p { color: #667781; }
+body.theme-light .icon-button { color: #667781; }
+body.theme-light .icon-button:hover { background: #e9edef; }
+body.theme-light .messages-container { background-image: linear-gradient(rgba(239, 234, 226, 0.97), rgba(239, 234, 226, 0.97)), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23ddd8ce" width="100" height="100"/></svg>'); }
+body.theme-light .message-self { background: #d9fdd3; }
+body.theme-light .message-self .message-text { color: #111b21; }
+body.theme-light .message-self .message-time { color: #667781; }
+body.theme-light .message-peer,
+body.theme-light .message-other,
+body.theme-light .message-server { background: #ffffff; }
+body.theme-light .message-peer .message-text,
+body.theme-light .message-other .message-text { color: #111b21; }
+body.theme-light .message-system { background: #cdd4d8; }
+body.theme-light .message-system .message-text { color: #4a5568; }
+body.theme-light .message-time { color: #667781; }
+body.theme-light .input-container { background: #ffffff; border-top-color: #e9edef; }
+body.theme-light .input-wrapper { background: #f0f2f5; }
+body.theme-light #input { color: #111b21; }
+body.theme-light #input::placeholder { color: #8696a0; }
+body.theme-light .settings-panel { background: #f0f2f5; }
+body.theme-light .settings-header { background: #ffffff; }
+body.theme-light .settings-header h2 { color: #111b21; }
+body.theme-light .settings-section { border-bottom-color: #e9edef; }
+body.theme-light .settings-item-label { color: #111b21; }
+body.theme-light .settings-item-desc { color: #667781; }
+body.theme-light .settings-item-clickable:hover { background: #ffffff; }
+body.theme-light .settings-profile:hover { background: #ffffff; }
+body.theme-light .settings-profile-name { color: #111b21; }
+body.theme-light .settings-profile-status { color: #667781; }
+body.theme-light .settings-select { background: #e9edef; color: #111b21; }
+body.theme-light .friend-requests-panel,
+body.theme-light .discovery-panel { background: #f0f2f5; }
+body.theme-light .friend-requests-header,
+body.theme-light .discovery-header { background: #ffffff; }
+body.theme-light .friend-requests-header h2,
+body.theme-light .discovery-header h2 { color: #111b21; }
+body.theme-light .friend-requests-content,
+body.theme-light .discovery-content { background: #f0f2f5; }
+body.theme-light .friend-request-item { background: #f0f2f5; border-bottom-color: #e9edef; }
+body.theme-light .friend-request-item:hover { background: #ffffff; }
+body.theme-light .friend-request-name { color: #111b21; }
+body.theme-light .user-result-item { border-bottom-color: #e9edef; }
+body.theme-light .user-result-item:hover { background: #ffffff; }
+body.theme-light .user-result-name { color: #111b21; }
+body.theme-light #userSearchInput { background: #e9edef; color: #111b21; }
+body.theme-light #userSearchInput:focus { background: #dde1e5; }
+body.theme-light .login-page { background: #f0f2f5; }
+body.theme-light .login-card { background: #ffffff; }
+body.theme-light .login-card h2 { color: #111b21; }
+body.theme-light .login-card p { color: #667781; }
+body.theme-light .login-field input { background: #f0f2f5; color: #111b21; }
 
 /* Responsive */
 @media (max-width: 768px) {

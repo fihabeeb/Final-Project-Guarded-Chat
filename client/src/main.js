@@ -3,6 +3,7 @@ import { socket } from './socketIO.js';
 import { socketHandlers } from './socketIoHandlers.js';
 import { offerPeerConnection, recievePeerConnection, rtcSockets, dataChannel } from './webrtc.js';
 import { setPeerConnectionId } from './peerConnectionId.js';
+import { getEnterToSend } from './appSettings.js';
 import { videoCallHandler } from './videoCall.js';
 import { autoLogin, ifLoginApproved } from './login.js';
 import { settingsListeners } from './appSettings.js';
@@ -31,6 +32,13 @@ sidebarListeners();
 userDiscoveryListeners();
 friendRequestsListeners();
 setupMessageListeners();
+
+// Prevent Enter from submitting when enterToSend is off
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !getEnterToSend()) {
+    e.preventDefault();
+  }
+});
 
 // Sending a message
 form.addEventListener("submit", async function (e) {

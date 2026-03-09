@@ -2,7 +2,6 @@
 
 ## Features
 
-- **Settings panel**: UI exists but all toggles are non-functional (notifications, theme, font size, privacy)
 - **Server-side persistence**: Friend requests, message queue, and pending key exchanges are all in-memory only — lost on server restart
 - **Typing indicators**: Not implemented
 - **Read receipts**: Not implemented

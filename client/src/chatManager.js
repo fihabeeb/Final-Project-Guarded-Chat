@@ -3,6 +3,7 @@ import { addMessage } from './chatHistoryHandler.js';
 import { encryptMessage, decryptMessage, hasKeyForFriend } from './encryption.js';
 import { sendP2PMessage } from './webrtc.js';
 import { setContactPeerStatus } from './sidebar.js';
+import { playMessageSound, showNotification } from './appSettings.js';
 
 let currentUserId = null;
 let currentChatPartnerId = null;
@@ -113,6 +114,9 @@ export function setupMessageListeners() {
       }
     }
 
+    playMessageSound();
+    showNotification(data.fromName, data.message);
+
     // Add message to chat if it's from current chat partner
     if (data.from === currentChatPartnerId) {
       addMessage(data.fromName, data.message, 'other');
@@ -123,8 +127,6 @@ export function setupMessageListeners() {
       }
       pendingMessagesByUser.get(data.from).push(data);
       updatePendingBadge(data.from, pendingMessagesByUser.get(data.from).length);
-
-      console.log(`Message from ${data.fromName} stored for later`);
     }
   });
 

@@ -163,7 +163,7 @@
                 <span class="settings-item-desc">Show notifications for new messages</span>
               </div>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input type="checkbox" data-setting="notifications" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
@@ -173,7 +173,7 @@
                 <span class="settings-item-desc">Play sounds for incoming messages</span>
               </div>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input type="checkbox" data-setting="sound" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
@@ -212,7 +212,7 @@
                 <span class="settings-item-label">Theme</span>
                 <span class="settings-item-desc">Choose your preferred theme</span>
               </div>
-              <select class="settings-select">
+              <select class="settings-select" data-setting="theme">
                 <option value="dark">Dark</option>
                 <option value="light">Light</option>
                 <option value="system">System</option>
@@ -223,7 +223,7 @@
                 <span class="settings-item-label">Font size</span>
                 <span class="settings-item-desc">Adjust message text size</span>
               </div>
-              <select class="settings-select">
+              <select class="settings-select" data-setting="fontSize">
                 <option value="small">Small</option>
                 <option value="medium" selected>Medium</option>
                 <option value="large">Large</option>
@@ -240,7 +240,7 @@
                 <span class="settings-item-desc">Press Enter to send, Shift+Enter for new line</span>
               </div>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input type="checkbox" data-setting="enterToSend" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
