@@ -285,6 +285,29 @@ export function PeerChatting(socket) {
         }
     });
 
+    // Typing indicators
+    socket.on('typing', (data) => {
+        const { fromUserId, toUserId } = data;
+        if (isUserOnline(toUserId)) {
+            io.to(getUserSocketId(toUserId)).emit('typing', { fromUserId });
+        }
+    });
+
+    socket.on('stop typing', (data) => {
+        const { fromUserId, toUserId } = data;
+        if (isUserOnline(toUserId)) {
+            io.to(getUserSocketId(toUserId)).emit('stop typing', { fromUserId });
+        }
+    });
+
+    // Read receipts
+    socket.on('read receipt', (data) => {
+        const { fromUserId, toUserId } = data;
+        if (isUserOnline(toUserId)) {
+            io.to(getUserSocketId(toUserId)).emit('message read', { byUserId: fromUserId });
+        }
+    });
+
     // Start chat with specific user (for WebRTC setup)
     socket.on("start chat", (data) => {
         const { fromUserId, toUserId } = data;

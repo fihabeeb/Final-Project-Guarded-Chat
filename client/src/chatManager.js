@@ -1,9 +1,11 @@
 import { socket } from './socketIO.js';
-import { addMessage } from './chatHistoryHandler.js';
+import { addMessage, markMessagesAsRead } from './chatHistoryHandler.js';
 import { encryptMessage, decryptMessage, hasKeyForFriend } from './encryption.js';
 import { sendP2PMessage } from './webrtc.js';
 import { setContactPeerStatus } from './sidebar.js';
-import { playMessageSound, showNotification } from './appSettings.js';
+import { playMessageSound, showNotification, loadSettings } from './appSettings.js';
+
+const typingIndicator = document.getElementById('typingIndicator');
 
 let currentUserId = null;
 let currentChatPartnerId = null;
@@ -42,19 +44,33 @@ export function setCurrentChatPartner(partnerId, partnerName) {
   currentChatPartnerId = partnerId;
   currentChatPartnerName = partnerName;
 
+  // Hide typing indicator when switching chats
+  if (typingIndicator) typingIndicator.style.display = 'none';
+
   // Check if there are any pending messages from this user
   if (pendingMessagesByUser.has(partnerId)) {
     const messages = pendingMessagesByUser.get(partnerId);
-
-    // Display all pending messages
     messages.forEach(msg => {
       addMessage(msg.fromName, msg.message, 'other');
     });
-
-    // Clear pending messages and remove badge
     pendingMessagesByUser.delete(partnerId);
     updatePendingBadge(partnerId, 0);
   }
+
+  // Notify partner that we've read their messages
+  if (loadSettings().readReceipts && currentUserId) {
+    socket.emit('read receipt', { fromUserId: currentUserId, toUserId: partnerId });
+  }
+}
+
+export function emitTyping() {
+  if (!currentUserId || !currentChatPartnerId) return;
+  socket.emit('typing', { fromUserId: currentUserId, toUserId: currentChatPartnerId });
+}
+
+export function emitStopTyping() {
+  if (!currentUserId || !currentChatPartnerId) return;
+  socket.emit('stop typing', { fromUserId: currentUserId, toUserId: currentChatPartnerId });
 }
 
 export function getCurrentChatPartner() {
@@ -113,6 +129,10 @@ export function setupMessageListeners() {
     // Add message to chat if it's from current chat partner
     if (data.from === currentChatPartnerId) {
       addMessage(data.fromName, data.message, 'other');
+      // Immediately send read receipt since chat is open
+      if (loadSettings().readReceipts && currentUserId) {
+        socket.emit('read receipt', { fromUserId: currentUserId, toUserId: data.from });
+      }
     } else {
       // Store message for later when user opens this chat
       if (!pendingMessagesByUser.has(data.from)) {
@@ -124,6 +144,24 @@ export function setupMessageListeners() {
   });
 
   socket.on('message queued', () => {});
+
+  // Typing indicators
+  socket.on('typing', ({ fromUserId }) => {
+    if (fromUserId === currentChatPartnerId && typingIndicator) {
+      typingIndicator.style.display = 'flex';
+    }
+  });
+
+  socket.on('stop typing', ({ fromUserId }) => {
+    if (fromUserId === currentChatPartnerId && typingIndicator) {
+      typingIndicator.style.display = 'none';
+    }
+  });
+
+  // Read receipts
+  socket.on('message read', ({ byUserId }) => {
+    markMessagesAsRead(byUserId);
+  });
 
   // Handle pending messages on login
   socket.on('pending messages', async (messages) => {
@@ -167,6 +205,9 @@ export function setupMessageListeners() {
       });
       pendingMessagesByUser.delete(currentChatPartnerId);
       updatePendingBadge(currentChatPartnerId, 0);
+      if (loadSettings().readReceipts && currentUserId) {
+        socket.emit('read receipt', { fromUserId: currentUserId, toUserId: currentChatPartnerId });
+      }
     }
   });
 

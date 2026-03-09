@@ -2,9 +2,6 @@
 
 ## Features
 
-- **Typing indicators**: Not implemented
-- **Read receipts**: Not implemented
-
 ## Security
 
 - **Passwords in localStorage**: Auto-login stores plaintext password in localStorage — XSS risk. Consider storing a session token instead

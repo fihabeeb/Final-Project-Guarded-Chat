@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
     notifications: true,
     sound: true,
     enterToSend: true,
+    readReceipts: true,
 };
 
 const FONT_SIZES = { small: '12.5px', medium: '14.5px', large: '17px' };
@@ -75,6 +76,8 @@ export function settingsListeners() {
     settingsModal.querySelector('[data-setting="notifications"]').checked = settings.notifications;
     settingsModal.querySelector('[data-setting="sound"]').checked = settings.sound;
     settingsModal.querySelector('[data-setting="enterToSend"]').checked = settings.enterToSend;
+    const receiptEl = settingsModal.querySelector('[data-setting="readReceipts"]');
+    if (receiptEl) receiptEl.checked = settings.readReceipts;
 
     settingsButton.onclick = () => settingsModal.classList.add('active');
     closeSettingsButton.onclick = () => settingsModal.classList.remove('active');

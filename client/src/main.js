@@ -11,7 +11,7 @@ import { sidebarListeners } from './sidebar.js';
 import { addMessage } from './chatHistoryHandler.js';
 import { userDiscoveryListeners } from './userDiscovery.js';
 import { friendRequestsListeners } from './friendRequests.js';
-import { sendMessage, setupMessageListeners } from './chatManager.js';
+import { sendMessage, setupMessageListeners, emitTyping, emitStopTyping } from './chatManager.js';
 import { initECDHKeyPair } from './encryption.js';
 
 // Initialise ECDH key pair on startup (generates once, reuses on subsequent loads)
@@ -40,9 +40,19 @@ input.addEventListener('keydown', (e) => {
   }
 });
 
+// Typing indicator
+let typingTimeout = null;
+input.addEventListener('input', () => {
+  emitTyping();
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => emitStopTyping(), 2000);
+});
+
 // Sending a message
 form.addEventListener("submit", async function (e) {
   e.preventDefault();
+  clearTimeout(typingTimeout);
+  emitStopTyping();
   if (input.value) {
     const message = input.value;
     input.value = "";

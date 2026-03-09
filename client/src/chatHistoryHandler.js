@@ -19,12 +19,12 @@ export function changeChatter(chatterId) {
 function replaceChatHistory() {
     messages.replaceChildren();
     currenctChatHistory.forEach(element => {
-        addMessage(element.sender, element.message, element.type, element.time, true);
+        addMessage(element.sender, element.message, element.type, element.time, true, element.read ?? false);
     });
 }
 
 // Add message to chat UI with timestamp
-export function addMessage(sender, text, type = 'default', optionalTime = null, storageGeneration = false) {
+export function addMessage(sender, text, type = 'default', optionalTime = null, storageGeneration = false, isRead = false) {
   const item = document.createElement("li");
   item.className = `message-${type}`;
 
@@ -52,12 +52,39 @@ export function addMessage(sender, text, type = 'default', optionalTime = null, 
     timeSpan.textContent = textTime;
     item.appendChild(timeSpan);
 
+    if (type === 'self') {
+      const receiptSpan = document.createElement("span");
+      receiptSpan.className = "message-receipt";
+      receiptSpan.dataset.read = isRead ? 'true' : 'false';
+      receiptSpan.textContent = isRead ? '✓✓' : '✓';
+      item.appendChild(receiptSpan);
+    }
+
     if (!storageGeneration && lastChattedWith) {
-        currenctChatHistory.push({ message: text, time: textTime, sender: sender, type: type });
+        currenctChatHistory.push({ message: text, time: textTime, sender: sender, type: type, read: false });
         localStorage.setItem('chatHistory' + lastChattedWith.id, JSON.stringify(currenctChatHistory));
     }
   }
 
   messages.appendChild(item);
   messages.parentElement.scrollTop = messages.parentElement.scrollHeight;
+}
+
+export function markMessagesAsRead(partnerId) {
+  const key = 'chatHistory' + partnerId;
+  const stored = localStorage.getItem(key);
+  if (stored) {
+    const history = JSON.parse(stored);
+    history.forEach(msg => { if (msg.type === 'self') msg.read = true; });
+    localStorage.setItem(key, JSON.stringify(history));
+    if (lastChattedWith?.id === partnerId) {
+      currenctChatHistory.forEach(msg => { if (msg.type === 'self') msg.read = true; });
+    }
+  }
+  if (lastChattedWith?.id === partnerId) {
+    document.querySelectorAll('.message-self .message-receipt').forEach(el => {
+      el.dataset.read = 'true';
+      el.textContent = '✓✓';
+    });
+  }
 }
