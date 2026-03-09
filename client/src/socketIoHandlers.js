@@ -6,7 +6,6 @@ export function socketHandlers(socket) {
     socket.on('connect', () => {
         console.log('Connected to server!');
         updateConnectionStatus('online');
-        addMessage('System', 'Connected to server', 'system');
     });
 
     socket.on('connect_error', (error) => {
@@ -17,6 +16,5 @@ export function socketHandlers(socket) {
     socket.on('disconnect', () => {
         console.log('Disconnected from server');
         updateConnectionStatus('offline');
-        addMessage('System', 'Disconnected from server', 'system');
     });
 }

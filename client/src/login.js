@@ -125,6 +125,17 @@ function onLoginSuccess(user) {
     loadFriendsList(user.id);
 }
 
+export function logout() {
+    loggedIn = false;
+    loginPage.style.display = '';
+    appContainer.classList.add('hidden');
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+    localStorage.removeItem('username');
+    localStorage.removeItem('password');
+    localStorage.removeItem('userId');
+}
+
 export function ifLoginApproved() {
     socket.on('login-approved', (user) => {
         console.log("Logged in: " + user.name);

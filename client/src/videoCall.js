@@ -1,6 +1,7 @@
 import { getPeerConnectionId, setPeerConnectionId } from './peerConnectionId.js';
-import { offerPeerConnection, recievePeerConnection, endCall, startWebcam } from './webrtc.js';
+import { offerPeerConnection, recievePeerConnection, endCall, startWebcam, callState } from './webrtc.js';
 import { addMessage } from './chatHistoryHandler.js';
+import { socket } from './socketIO.js';
 
 const joinCallButton = document.getElementById('joinCallButton');
 const hangupButton = document.getElementById('hangupButton');
@@ -15,11 +16,6 @@ const confirmCallSetup = document.getElementById('confirmCallSetup');
 const videoCallButton = document.getElementById('videoCallButton');
 const videoModal = document.getElementById('videoModal');
 const callSetupModal = document.getElementById('callSetupModal');
-
-let localStream = null;
-let isMuted = false;
-let isCameraOff = false;
-let isInCall = false;
 
 export function videoCallHandler() {
     // Video Call Button - Create call
@@ -55,9 +51,9 @@ export function videoCallHandler() {
     // Cancel call setup
     cancelCallSetup.onclick = () => {
         callSetupModal.classList.remove('active');
-        if (localStream && !isInCall) {
-            localStream.getTracks().forEach(track => track.stop());
-            localStream = null;
+        if (callState.localStream && !callState.isInCall) {
+            callState.localStream.getTracks().forEach(track => track.stop());
+            callState.localStream = null;
         }
     };
 
@@ -68,7 +64,7 @@ export function videoCallHandler() {
 
         if (isCreatingCall) {
             offerPeerConnection(socket);
-            isInCall = true;
+            callState.isInCall = true;
             callSetupModal.classList.remove('active');
             videoModal.classList.add('active');
         }
@@ -86,7 +82,7 @@ export function videoCallHandler() {
                 return;
             }
             recievePeerConnection(socket);
-            isInCall = true;
+            callState.isInCall = true;
             callSetupModal.classList.remove('active');
             videoModal.classList.add('active');
         }
@@ -94,26 +90,24 @@ export function videoCallHandler() {
 
     // Toggle microphone
     toggleMicButton.onclick = () => {
-        if (localStream) {
-            const audioTrack = localStream.getAudioTracks()[0];
+        if (callState.localStream) {
+            const audioTrack = callState.localStream.getAudioTracks()[0];
             if (audioTrack) {
                 audioTrack.enabled = !audioTrack.enabled;
-                isMuted = !audioTrack.enabled;
-                toggleMicButton.style.background = isMuted ? '#f15c6d' : '#374955';
-                console.log('Microphone:', isMuted ? 'muted' : 'unmuted');
+                callState.isMuted = !audioTrack.enabled;
+                toggleMicButton.style.background = callState.isMuted ? '#f15c6d' : '#374955';
             }
         }
     };
 
     // Toggle camera
     toggleCameraButton.onclick = () => {
-        if (localStream) {
-            const videoTrack = localStream.getVideoTracks()[0];
+        if (callState.localStream) {
+            const videoTrack = callState.localStream.getVideoTracks()[0];
             if (videoTrack) {
                 videoTrack.enabled = !videoTrack.enabled;
-                isCameraOff = !videoTrack.enabled;
-                toggleCameraButton.style.background = isCameraOff ? '#f15c6d' : '#374955';
-                console.log('Camera:', isCameraOff ? 'off' : 'on');
+                callState.isCameraOff = !videoTrack.enabled;
+                toggleCameraButton.style.background = callState.isCameraOff ? '#f15c6d' : '#374955';
             }
         }
     };

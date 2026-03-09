@@ -4,11 +4,19 @@ import { addMessage } from './chatHistoryHandler.js';
 import { getPeerConnectionId, setPeerConnectionId } from "./peerConnectionId.js";
 import { encryptMessage, decryptMessage, hasKeyForFriend } from './encryption.js';
 import { getCurrentChatPartner } from './chatManager.js';
+import { setContactPeerStatus } from './sidebar.js';
 
 let peerConnection = null;
 export let dataChannel = null;
 let isVideo = false;
 let remoteStream = null;
+
+export const callState = {
+  localStream: null,
+  isInCall: false,
+  isMuted: false,
+  isCameraOff: false,
+};
 
 
 const webcamVideo = document.getElementById('webcamVideo');
@@ -41,13 +49,14 @@ function createPeerConnection() {
 // Setup data channel event handlers
 function setupDataChannel(channel) {
   channel.onopen = () => {
-    console.log('Data channel opened');
+    const partner = getCurrentChatPartner();
+    if (partner.id) setContactPeerStatus(partner.id, 'P2P connected');
     updateConnectionStatus('P2P connected');
-    addMessage('System', 'Peer-to-peer connection established', 'system');
   };
 
   channel.onclose = () => {
-    console.log('Data channel closed');
+    const partner = getCurrentChatPartner();
+    if (partner.id) setContactPeerStatus(partner.id, 'offline');
     updateConnectionStatus('online');
   };
 
@@ -73,8 +82,8 @@ export async function offerPeerConnection(socket) {
 
     // Add local tracks
     if (isVideo) {
-      localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, localStream);
+      callState.localStream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, callState.localStream);
       });
     }
 
@@ -115,8 +124,8 @@ export async function recievePeerConnection(socket) {
 
     // Add local tracks
     if (isVideo) {
-      localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, localStream);
+      callState.localStream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, callState.localStream);
       });
     }
 
@@ -201,18 +210,17 @@ export async function sendP2PMessage(text) {
 }
 
 export const endCall = () => {
-  if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
+  if (callState.localStream) {
+    callState.localStream.getTracks().forEach(track => track.stop());
   }
 
   webcamVideo.srcObject = null;
   remoteVideo.srcObject = null;
-  localStream = null;
+  callState.localStream = null;
   remoteStream = null;
-  //getPeerConnectionId() = null;
-  isInCall = false;
-  isMuted = false;
-  isCameraOff = false;
+  callState.isInCall = false;
+  callState.isMuted = false;
+  callState.isCameraOff = false;
 
   videoModal.classList.remove('active');
   updateConnectionStatus('online');
@@ -222,10 +230,10 @@ export const endCall = () => {
 // Start webcam
 export async function startWebcam() {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    callState.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     remoteStream = new MediaStream();
 
-    webcamVideo.srcObject = localStream;
+    webcamVideo.srcObject = callState.localStream;
     remoteVideo.srcObject = remoteStream;
 
     return true;

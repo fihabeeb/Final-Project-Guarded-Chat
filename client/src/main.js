@@ -2,6 +2,7 @@ import './style/style.css'
 import { socket } from './socketIO.js';
 import { socketHandlers } from './socketIoHandlers.js';
 import { offerPeerConnection, recievePeerConnection, rtcSockets, dataChannel } from './webrtc.js';
+import { setPeerConnectionId } from './peerConnectionId.js';
 import { videoCallHandler } from './videoCall.js';
 import { autoLogin, ifLoginApproved } from './login.js';
 import { settingsListeners } from './appSettings.js';
@@ -45,14 +46,12 @@ form.addEventListener("submit", async function (e) {
   }
 });
 
-let hasOffered = false;
-socket.on("offerRTCConnection", function () {
-  if (hasOffered === false) {
-    offerPeerConnection(socket);
-    hasOffered = true
-  }
+socket.on("offerRTCConnection", function (data) {
+  if (data && data.callId) setPeerConnectionId(data.callId);
+  offerPeerConnection(socket);
 });
 
-socket.on("recieveRTCConnection", function () {
+socket.on("recieveRTCConnection", function (data) {
+  if (data && data.callId) setPeerConnectionId(data.callId);
   recievePeerConnection(socket);
 });

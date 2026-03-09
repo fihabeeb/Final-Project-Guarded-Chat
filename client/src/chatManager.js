@@ -1,6 +1,8 @@
 import { socket } from './socketIO.js';
 import { addMessage } from './chatHistoryHandler.js';
 import { encryptMessage, decryptMessage, hasKeyForFriend } from './encryption.js';
+import { sendP2PMessage } from './webrtc.js';
+import { setContactPeerStatus } from './sidebar.js';
 
 let currentUserId = null;
 let currentChatPartnerId = null;
@@ -75,18 +77,20 @@ export async function sendMessage(message) {
     return false;
   }
 
-  let payload = message;
-  if (hasKeyForFriend(currentChatPartnerId)) {
-    payload = await encryptMessage(message, currentChatPartnerId);
-  } else {
-    console.warn('[Encryption] No key for partner — sending plaintext');
+  // Use P2P data channel if available (handles its own encryption)
+  const p2pSent = await sendP2PMessage(message);
+  if (!p2pSent) {
+    // Fall back to server relay
+    let payload = message;
+    if (hasKeyForFriend(currentChatPartnerId)) {
+      payload = await encryptMessage(message, currentChatPartnerId);
+    }
+    socket.emit('chat message', {
+      fromUserId: currentUserId,
+      toUserId: currentChatPartnerId,
+      message: payload
+    });
   }
-
-  socket.emit('chat message', {
-    fromUserId: currentUserId,
-    toUserId: currentChatPartnerId,
-    message: payload
-  });
 
   // Always display our own message as plaintext locally
   addMessage('You', message, 'self');
@@ -178,11 +182,7 @@ export function setupMessageListeners() {
 
   // Handle user offline notification
   socket.on('user offline', (data) => {
-    console.log('User is offline:', data.userId);
-    if (data.userId === currentChatPartnerId) {
-      // Could show an indicator that the user is offline
-      console.log(`${currentChatPartnerName} is currently offline`);
-    }
+    setContactPeerStatus(data.userId, 'offline');
   });
 
   // Handle incoming chat requests

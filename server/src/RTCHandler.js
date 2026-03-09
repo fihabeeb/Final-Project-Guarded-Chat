@@ -170,6 +170,11 @@ export function PeerChatting(socket) {
         socket.emit('friendsList', friends);
     });
 
+    socket.on('restoreFriendsList', (data) => {
+        const { userId, friendIds } = data;
+        friendIds.forEach(friendId => addFriend(userId, friendId));
+    });
+
     socket.on('addFriend', (data) => {
         const { userId, friendId } = data;
         console.log(`Add friend request: ${userId} wants to add ${friendId}`);
@@ -348,14 +353,19 @@ export function PeerChatting(socket) {
             const recipientSocketId = getUserSocketId(toUserId);
             const fromUser = getUserById(fromUserId);
 
+            // Deterministic call ID so both peers agree on the same key
+            const callId = [fromUserId, toUserId].sort().join(':');
+
             // Notify recipient that someone wants to chat
             io.to(recipientSocketId).emit("incoming chat", {
                 from: fromUserId,
                 fromName: fromUser ? fromUser.name : "Unknown"
             });
 
-            // Confirm to sender
+            // Confirm to sender and trigger P2P setup
             socket.emit("chat started", { with: toUserId });
+            socket.emit("offerRTCConnection", { callId });
+            io.to(recipientSocketId).emit("recieveRTCConnection", { callId });
         } else {
             socket.emit("user offline", { userId: toUserId });
         }

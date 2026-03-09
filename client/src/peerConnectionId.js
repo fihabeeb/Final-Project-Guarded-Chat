@@ -1,4 +1,4 @@
-let peerConnectionID = 555;
+let peerConnectionID = null;
 
 export function getPeerConnectionId()
 {

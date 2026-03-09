@@ -1,4 +1,6 @@
 // Settings modal handling
+import { logout } from './login.js';
+
 const settingsModal = document.getElementById('settingsModal');
 const settingsButton = document.getElementById('settingsButton');
 const closeSettingsButton = document.getElementById('closeSettingsButton');
@@ -21,11 +23,7 @@ export function settingsListeners() {
     });
 
     logoutButton.onclick = () => {
-        loggedIn = false;
         settingsModal.classList.remove('active');
-        appContainer.classList.add('hidden');
-        loginPage.style.display = '';
-        document.getElementById('loginUsername').value = '';
-        document.getElementById('loginPassword').value = '';
+        logout();
     };
 }

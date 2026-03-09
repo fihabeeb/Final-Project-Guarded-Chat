@@ -9,9 +9,11 @@ let friendsList = [];
 export function sidebarListeners() {
     // Listen for friends list from server
     socket.on('friendsList', (friends) => {
-        console.log('Received friends list:', friends);
         friendsList = friends;
         renderFriendsList(friends);
+        if (currentUserId) {
+            localStorage.setItem(`friends_${currentUserId}`, JSON.stringify(friends));
+        }
     });
 
     // Handle contact clicks
@@ -46,9 +48,18 @@ export function sidebarListeners() {
 }
 
 export function loadFriendsList(userId) {
-    console.log('Loading friends list for user:', userId);
     currentUserId = userId;
-    socket.emit('getFriendsList', userId);
+
+    const stored = localStorage.getItem(`friends_${userId}`);
+    if (stored) {
+        const localFriends = JSON.parse(stored);
+        friendsList = localFriends;
+        renderFriendsList(localFriends);
+        // Rehydrate server's in-memory map for this session
+        socket.emit('restoreFriendsList', { userId, friendIds: localFriends.map(f => f.id) });
+    } else {
+        socket.emit('getFriendsList', userId);
+    }
 }
 
 export function renderFriendsList(friends) {
@@ -73,7 +84,7 @@ export function renderFriendsList(friends) {
             <div class="contact-avatar">${friend.name[0].toUpperCase()}</div>
             <div class="contact-info">
                 <div class="contact-name">${friend.name}</div>
-                <div class="contact-status">@${friend.id}</div>
+                <div class="contact-status" data-peer-status="${friend.id}">offline</div>
             </div>
         `;
         sidebar.appendChild(div);
@@ -97,4 +108,11 @@ export function addFriendToSidebar(friend) {
 
 export function getCurrentUserId() {
     return currentUserId;
+}
+
+export function setContactPeerStatus(contactId, status) {
+    const el = document.querySelector(`[data-peer-status="${contactId}"]`);
+    if (!el) return;
+    el.textContent = status;
+    el.style.color = status === 'P2P connected' ? '#00a884' : '#8696a0';
 }
