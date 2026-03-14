@@ -71,7 +71,7 @@ function setupDataChannel(channel) {
         text = '[could not decrypt message]';
       }
     }
-    addMessage('Peer', text, 'peer');
+    addMessage(partner.name || 'Peer', text, 'peer');
   };
 }
 

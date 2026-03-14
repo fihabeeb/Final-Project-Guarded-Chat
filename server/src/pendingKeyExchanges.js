@@ -14,5 +14,8 @@ export async function getPendingKeyExchanges(userId) {
      RETURNING friend_id AS "friendId", public_key AS "publicKey"`,
     [userId]
   );
-  return rows;
+  return rows.map(({ friendId, publicKey }) => ({
+    friendId,
+    publicKey: publicKey ? JSON.parse(publicKey) : null
+  }));
 }

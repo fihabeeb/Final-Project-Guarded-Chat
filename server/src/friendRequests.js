@@ -36,7 +36,8 @@ export async function acceptFriendRequest(userId, fromUserId) {
   if (rows.length === 0) {
     return { success: false, message: 'Friend request not found' };
   }
-  return { success: true, fromUserId, senderPublicKey: rows[0].senderPublicKey };
+  const raw = rows[0].senderPublicKey;
+  return { success: true, fromUserId, senderPublicKey: raw ? JSON.parse(raw) : null };
 }
 
 export async function rejectFriendRequest(userId, fromUserId) {
