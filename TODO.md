@@ -7,11 +7,6 @@
 - **Passwords in localStorage**: Auto-login stores plaintext password in localStorage — XSS risk. Consider storing a session token instead
 - **Rate limiting**: No rate limiting on login or registration endpoints
 
-## Polish / Pre-submission
-
-- Test full flow end-to-end: register → add friend → key exchange → encrypted message → P2P chat → video call
-
----
 
 ### Long-term considerations
 
