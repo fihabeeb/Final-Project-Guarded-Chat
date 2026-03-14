@@ -77,11 +77,11 @@ export function markMessagesAsRead(partnerId) {
     const history = JSON.parse(stored);
     history.forEach(msg => { if (msg.type === 'self') msg.read = true; });
     localStorage.setItem(key, JSON.stringify(history));
-    if (lastChattedWith?.id === partnerId) {
+    if (String(lastChattedWith?.id) === String(partnerId)) {
       currenctChatHistory.forEach(msg => { if (msg.type === 'self') msg.read = true; });
     }
   }
-  if (lastChattedWith?.id === partnerId) {
+  if (String(lastChattedWith?.id) === String(partnerId)) {
     document.querySelectorAll('.message-self .message-receipt').forEach(el => {
       el.dataset.read = 'true';
       el.textContent = '✓✓';

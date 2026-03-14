@@ -127,7 +127,7 @@ export function setupMessageListeners() {
     showNotification(data.fromName, data.message);
 
     // Add message to chat if it's from current chat partner
-    if (data.from === currentChatPartnerId) {
+    if (String(data.from) === String(currentChatPartnerId)) {
       addMessage(data.fromName, data.message, 'other');
       // Immediately send read receipt since chat is open
       if (loadSettings().readReceipts && currentUserId) {
@@ -147,13 +147,13 @@ export function setupMessageListeners() {
 
   // Typing indicators
   socket.on('typing', ({ fromUserId }) => {
-    if (fromUserId === currentChatPartnerId && typingIndicator) {
+    if (String(fromUserId) === String(currentChatPartnerId) && typingIndicator) {
       typingIndicator.style.display = 'flex';
     }
   });
 
   socket.on('stop typing', ({ fromUserId }) => {
-    if (fromUserId === currentChatPartnerId && typingIndicator) {
+    if (String(fromUserId) === String(currentChatPartnerId) && typingIndicator) {
       typingIndicator.style.display = 'none';
     }
   });

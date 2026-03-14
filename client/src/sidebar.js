@@ -74,7 +74,7 @@ export function renderFriendsList(friends) {
         pendingAutoOpen = false;
         const lastId = localStorage.getItem('lastChattedWith');
         if (lastId) {
-            const last = friends.find(f => f.id === lastId);
+            const last = friends.find(f => String(f.id) === lastId);
             if (last) openChat(last.id, last.name);
         }
     }
@@ -90,7 +90,7 @@ function openChat(contactId, contactName) {
     document.querySelector('.chat-info h3').textContent = contactName;
     document.querySelector('.chat-avatar').textContent = contactName[0];
 
-    const friend = friendsList.find(f => f.id === contactId);
+    const friend = friendsList.find(f => String(f.id) === String(contactId));
     if (friend) changeChatter(friend);
 
     setCurrentChatPartner(contactId, contactName);
