@@ -243,7 +243,8 @@ export async function startVideoOffer(socket, targetUserId) {
 
 export async function handleIncomingVideoOffer(socket, offer, targetUserId) {
   if (!peerConnection) {
-    addMessage('System', 'No active connection', 'system');
+    addMessage('System', 'Video call failed: open the chat with this contact first, then try again.', 'system');
+    videoModal.classList.remove('active');
     return;
   }
 
