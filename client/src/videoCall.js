@@ -1,95 +1,69 @@
-import { getPeerConnectionId, setPeerConnectionId } from './peerConnectionId.js';
-import { offerPeerConnection, recievePeerConnection, endCall, startWebcam, callState } from './webrtc.js';
-import { addMessage } from './chatHistoryHandler.js';
+import { startWebcam, startVideoOffer, handleIncomingVideoOffer, handleIncomingVideoAnswer, addVideoIceCandidate, endCall, callState } from './webrtc.js';
 import { socket } from './socketIO.js';
+import { getCurrentChatPartner } from './chatManager.js';
+import { getCurrentUserId } from './sidebar.js';
 
-const joinCallButton = document.getElementById('joinCallButton');
 const hangupButton = document.getElementById('hangupButton');
 const closeVideoButton = document.getElementById('closeVideoButton');
 const toggleMicButton = document.getElementById('toggleMicButton');
 const toggleCameraButton = document.getElementById('toggleCameraButton');
-const callInput = document.getElementById('callInput');
-const callSetupTitle = document.getElementById('callSetupTitle');
-const callIdDisplay = document.getElementById('callIdDisplay');
-const cancelCallSetup = document.getElementById('cancelCallSetup');
-const confirmCallSetup = document.getElementById('confirmCallSetup');
 const videoCallButton = document.getElementById('videoCallButton');
 const videoModal = document.getElementById('videoModal');
-const callSetupModal = document.getElementById('callSetupModal');
+const incomingCallModal = document.getElementById('incomingCallModal');
+const incomingCallName = document.getElementById('incomingCallName');
+const acceptCallButton = document.getElementById('acceptCallButton');
+const declineCallButton = document.getElementById('declineCallButton');
+const callingModal = document.getElementById('callingModal');
+const callingName = document.getElementById('callingName');
+const cancelCallingButton = document.getElementById('cancelCallingButton');
+
+let pendingCallFromUserId = null;
 
 export function videoCallHandler() {
-    // Video Call Button - Create call
     videoCallButton.onclick = async () => {
-        callSetupTitle.textContent = 'Start Video Call';
-        callInput.value = '';
-        callInput.style.display = 'none';
-        callIdDisplay.style.display = 'block';
-        callIdDisplay.textContent = 'Starting call...';
-        callSetupModal.classList.add('active');
-
-        // Auto-start webcam
-        const webcamStarted = await startWebcam();
-        if (!webcamStarted) {
-            callSetupModal.classList.remove('active');
+        const partner = getCurrentChatPartner();
+        const myId = getCurrentUserId();
+        if (!partner.id) {
+            alert('Please select a contact first');
             return;
         }
+        if (callState.isInCall) return;
 
-        // Generate unique call ID
-        const callId = Math.random().toString(36).substring(2, 8).toUpperCase();
-        setPeerConnectionId(callId);
-        callIdDisplay.textContent = `Call ID: ${callId}`;
+        const started = await startWebcam();
+        if (!started) return;
+
+        callingName.textContent = `Calling ${partner.name}...`;
+        callingModal.classList.add('active');
+        socket.emit('video-call-request', { fromUserId: myId, toUserId: partner.id });
     };
 
-    // Join Call Button
-    joinCallButton.onclick = () => {
-        callSetupTitle.textContent = 'Join Call';
-        callInput.style.display = 'block';
-        callInput.value = '';
-        callIdDisplay.style.display = 'none';
-        callSetupModal.classList.add('active');
+    cancelCallingButton.onclick = () => {
+        const partner = getCurrentChatPartner();
+        const myId = getCurrentUserId();
+        callingModal.classList.remove('active');
+        socket.emit('video-call-declined', { fromUserId: myId, toUserId: partner.id });
+        endCall();
     };
 
-    // Cancel call setup
-    cancelCallSetup.onclick = () => {
-        callSetupModal.classList.remove('active');
-        if (callState.localStream && !callState.isInCall) {
-            callState.localStream.getTracks().forEach(track => track.stop());
-            callState.localStream = null;
+    acceptCallButton.onclick = async () => {
+        incomingCallModal.classList.remove('active');
+        const started = await startWebcam();
+        if (!started) {
+            socket.emit('video-call-declined', { fromUserId: getCurrentUserId(), toUserId: pendingCallFromUserId });
+            pendingCallFromUserId = null;
+            return;
         }
+        socket.emit('video-call-accepted', { fromUserId: getCurrentUserId(), toUserId: pendingCallFromUserId });
+        callState.isInCall = true;
+        videoModal.classList.add('active');
     };
 
-
-    // Confirm call setup
-    confirmCallSetup.onclick = async () => {
-        const isCreatingCall = callInput.style.display === 'none';
-
-        if (isCreatingCall) {
-            offerPeerConnection(socket);
-            callState.isInCall = true;
-            callSetupModal.classList.remove('active');
-            videoModal.classList.add('active');
-        }
-        else {
-            // Join call
-            setPeerConnectionId(callInput.value.trim());
-            if (!getPeerConnectionId()) {
-                addMessage('System', 'Please enter a call ID', 'system');
-                return;
-            }
-
-            const webcamStarted = await startWebcam();
-            if (!webcamStarted) {
-                callSetupModal.classList.remove('active');
-                return;
-            }
-            recievePeerConnection(socket);
-            callState.isInCall = true;
-            callSetupModal.classList.remove('active');
-            videoModal.classList.add('active');
-        }
+    declineCallButton.onclick = () => {
+        incomingCallModal.classList.remove('active');
+        socket.emit('video-call-declined', { fromUserId: getCurrentUserId(), toUserId: pendingCallFromUserId });
+        pendingCallFromUserId = null;
     };
 
-    // Toggle microphone
     toggleMicButton.onclick = () => {
         if (callState.localStream) {
             const audioTrack = callState.localStream.getAudioTracks()[0];
@@ -101,7 +75,6 @@ export function videoCallHandler() {
         }
     };
 
-    // Toggle camera
     toggleCameraButton.onclick = () => {
         if (callState.localStream) {
             const videoTrack = callState.localStream.getVideoTracks()[0];
@@ -112,7 +85,55 @@ export function videoCallHandler() {
             }
         }
     };
+
+    socket.on('video-call-incoming', (data) => {
+        pendingCallFromUserId = data.fromUserId;
+        incomingCallName.textContent = data.fromName;
+        incomingCallModal.classList.add('active');
+    });
+
+    socket.on('video-call-accepted', async () => {
+        callingModal.classList.remove('active');
+        const partner = getCurrentChatPartner();
+        callState.isInCall = true;
+        videoModal.classList.add('active');
+        await startVideoOffer(socket, partner.id);
+    });
+
+    socket.on('video-call-declined', () => {
+        callingModal.classList.remove('active');
+        incomingCallModal.classList.remove('active');
+        if (callState.localStream || callState.isInCall) endCall();
+    });
+
+    socket.on('video-rtc-offer', async (data) => {
+        await handleIncomingVideoOffer(socket, data.offer, pendingCallFromUserId);
+    });
+
+    socket.on('video-rtc-answer', async (data) => {
+        await handleIncomingVideoAnswer(data.answer);
+    });
+
+    socket.on('video-rtc-ice', async (data) => {
+        await addVideoIceCandidate(data.candidate);
+    });
+
+    socket.on('video-call-ended', () => {
+        callingModal.classList.remove('active');
+        incomingCallModal.classList.remove('active');
+        pendingCallFromUserId = null;
+        if (callState.isInCall || callState.localStream) endCall();
+    });
 }
 
-hangupButton.onclick = endCall;
-closeVideoButton.onclick = endCall;
+const doHangup = () => {
+    const partner = getCurrentChatPartner();
+    const myId = getCurrentUserId();
+    if (partner.id && myId) {
+        socket.emit('video-call-ended', { fromUserId: myId, toUserId: partner.id });
+    }
+    endCall();
+};
+
+hangupButton.onclick = doHangup;
+closeVideoButton.onclick = doHangup;

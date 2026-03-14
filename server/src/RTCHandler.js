@@ -427,4 +427,60 @@ export function PeerChatting(socket) {
         }
     });
 
+    // Video call signaling - routed directly by userId
+    socket.on("video-call-request", (data) => {
+        const { fromUserId, toUserId } = data;
+        if (isUserOnline(toUserId)) {
+            const fromUser = getUserById(fromUserId);
+            io.to(getUserSocketId(toUserId)).emit("video-call-incoming", {
+                fromUserId,
+                fromName: fromUser ? fromUser.name : "Unknown",
+            });
+        } else {
+            socket.emit("video-call-error", { message: "User is offline" });
+        }
+    });
+
+    socket.on("video-call-accepted", (data) => {
+        const { fromUserId, toUserId } = data;
+        if (isUserOnline(toUserId)) {
+            io.to(getUserSocketId(toUserId)).emit("video-call-accepted", { fromUserId });
+        }
+    });
+
+    socket.on("video-call-declined", (data) => {
+        const { fromUserId, toUserId } = data;
+        if (isUserOnline(toUserId)) {
+            io.to(getUserSocketId(toUserId)).emit("video-call-declined", { fromUserId });
+        }
+    });
+
+    socket.on("video-call-ended", (data) => {
+        const { fromUserId, toUserId } = data;
+        if (isUserOnline(toUserId)) {
+            io.to(getUserSocketId(toUserId)).emit("video-call-ended", { fromUserId });
+        }
+    });
+
+    socket.on("video-rtc-offer", (data) => {
+        const { toUserId, offer } = data;
+        if (isUserOnline(toUserId)) {
+            io.to(getUserSocketId(toUserId)).emit("video-rtc-offer", { offer });
+        }
+    });
+
+    socket.on("video-rtc-answer", (data) => {
+        const { toUserId, answer } = data;
+        if (isUserOnline(toUserId)) {
+            io.to(getUserSocketId(toUserId)).emit("video-rtc-answer", { answer });
+        }
+    });
+
+    socket.on("video-rtc-ice", (data) => {
+        const { toUserId, candidate } = data;
+        if (isUserOnline(toUserId)) {
+            io.to(getUserSocketId(toUserId)).emit("video-rtc-ice", { candidate });
+        }
+    });
+
 }

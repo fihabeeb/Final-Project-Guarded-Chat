@@ -1,7 +1,7 @@
 import './style/style.css'
 import { socket } from './socketIO.js';
 import { socketHandlers } from './socketIoHandlers.js';
-import { offerPeerConnection, recievePeerConnection, rtcSockets, dataChannel } from './webrtc.js';
+import { offerPeerConnection, recievePeerConnection, rtcSockets } from './webrtc.js';
 import { setPeerConnectionId } from './peerConnectionId.js';
 import { getEnterToSend } from './appSettings.js';
 import { videoCallHandler } from './videoCall.js';

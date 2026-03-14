@@ -103,11 +103,6 @@
                 <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
               </svg>
             </button>
-            <button class="icon-button" id="joinCallButton" title="Join call">
-              <svg viewBox="0 0 24 24">
-                <path d="M20 15.5c-1.25 0-2.45-.2-3.57-.57-.35-.11-.74-.03-1.02.24l-2.2 2.2c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c.28-.26.36-.65.25-1C8.7 6.45 8.5 5.25 8.5 4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1 0 9.39 7.61 17 17 17 .55 0 1-.45 1-1v-3.5c0-.55-.45-1-1-1z"/>
-              </svg>
-            </button>
           </div>
         </div>
 
@@ -310,15 +305,31 @@
       </div>
     </div>
 
-    <!-- Call Setup Modal -->
-    <div class="call-setup-modal" id="callSetupModal">
-      <div class="call-setup-content">
-        <h3 id="callSetupTitle">Join Call</h3>
-        <input type="text" id="callInput" placeholder="Enter call ID">
-        <div id="callIdDisplay" style="display: none; color: #00a884; margin-bottom: 15px; font-size: 14px;"></div>
-        <div class="call-setup-actions">
-          <button class="btn btn-secondary" id="cancelCallSetup">Cancel</button>
-          <button class="btn btn-primary" id="confirmCallSetup">Continue</button>
+    <!-- Outgoing Call Modal -->
+    <div class="call-outgoing-modal" id="callingModal">
+      <div class="call-outgoing-content">
+        <div class="call-outgoing-icon">
+          <svg viewBox="0 0 24 24" width="40" height="40">
+            <path fill="currentColor" d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+          </svg>
+        </div>
+        <div id="callingName" class="calling-name">Calling...</div>
+        <button class="btn btn-danger" id="cancelCallingButton">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Incoming Call Modal -->
+    <div class="call-incoming-modal" id="incomingCallModal">
+      <div class="call-incoming-content">
+        <div class="call-incoming-icon">
+          <svg viewBox="0 0 24 24" width="40" height="40">
+            <path fill="currentColor" d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+          </svg>
+        </div>
+        <div id="incomingCallName" class="incoming-call-name">Incoming video call</div>
+        <div class="call-incoming-actions">
+          <button class="btn btn-danger" id="declineCallButton">Decline</button>
+          <button class="btn btn-success" id="acceptCallButton">Accept</button>
         </div>
       </div>
     </div>
@@ -381,10 +392,6 @@
         </div>
       </div>
     </div>
-
-    <button id="webcamButton" style="display: none;"></button>
-    <button id="callButton" style="display: none;"></button>
-    <button id="answerButton" style="display: none;"></button>
 
     <script type="module" src="/src/main.js"></script>
   </body>

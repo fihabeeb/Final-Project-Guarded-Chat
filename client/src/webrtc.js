@@ -8,8 +8,8 @@ import { setContactPeerStatus } from './sidebar.js';
 
 let peerConnection = null;
 export let dataChannel = null;
-let isVideo = false;
 let remoteStream = null;
+let videoIceHandler = null;
 
 export const callState = {
   localStream: null,
@@ -79,13 +79,6 @@ export async function offerPeerConnection(socket) {
   try {
     peerConnection = createPeerConnection();
 
-    // Add local tracks
-    if (isVideo) {
-      callState.localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, callState.localStream);
-      });
-    }
-
     // Create offer
     const offerDescription = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offerDescription);
@@ -98,8 +91,6 @@ export async function offerPeerConnection(socket) {
         type: offerDescription.type,
       }
     });
-
-    addMessage('System', `Call created. ID: ${getPeerConnectionId()}`, 'system');
 
     // Handle ICE candidates
     peerConnection.onicecandidate = event => {
@@ -120,13 +111,6 @@ export async function offerPeerConnection(socket) {
 export async function recievePeerConnection(socket) {
   try {
     peerConnection = createPeerConnection();
-
-    // Add local tracks
-    if (isVideo) {
-      callState.localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, callState.localStream);
-      });
-    }
 
     // Request the offer
     socket.emit('webrtc-get-offer', { callId: getPeerConnectionId() });
@@ -207,6 +191,11 @@ export async function sendP2PMessage(text) {
 }
 
 export const endCall = () => {
+  if (videoIceHandler && peerConnection) {
+    peerConnection.removeEventListener('icecandidate', videoIceHandler);
+    videoIceHandler = null;
+  }
+
   if (callState.localStream) {
     callState.localStream.getTracks().forEach(track => track.stop());
   }
@@ -220,9 +209,85 @@ export const endCall = () => {
   callState.isCameraOff = false;
 
   videoModal.classList.remove('active');
-  updateConnectionStatus('online');
   addMessage('System', 'Call ended', 'system');
 };
+
+export async function startVideoOffer(socket, targetUserId) {
+  if (!peerConnection) {
+    addMessage('System', 'No active connection. Open a chat first.', 'system');
+    return;
+  }
+
+  callState.localStream.getTracks().forEach(track => {
+    peerConnection.addTrack(track, callState.localStream);
+  });
+
+  webcamVideo.srcObject = callState.localStream;
+
+  videoIceHandler = (event) => {
+    if (event.candidate) {
+      socket.emit('video-rtc-ice', { toUserId: targetUserId, candidate: event.candidate.toJSON() });
+    }
+  };
+  peerConnection.addEventListener('icecandidate', videoIceHandler);
+
+  try {
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.emit('video-rtc-offer', { toUserId: targetUserId, offer: { type: offer.type, sdp: offer.sdp } });
+  } catch (error) {
+    console.error('Error creating video offer:', error);
+    addMessage('System', 'Error starting video call', 'system');
+  }
+}
+
+export async function handleIncomingVideoOffer(socket, offer, targetUserId) {
+  if (!peerConnection) {
+    addMessage('System', 'No active connection', 'system');
+    return;
+  }
+
+  callState.localStream.getTracks().forEach(track => {
+    peerConnection.addTrack(track, callState.localStream);
+  });
+
+  webcamVideo.srcObject = callState.localStream;
+
+  videoIceHandler = (event) => {
+    if (event.candidate) {
+      socket.emit('video-rtc-ice', { toUserId: targetUserId, candidate: event.candidate.toJSON() });
+    }
+  };
+  peerConnection.addEventListener('icecandidate', videoIceHandler);
+
+  try {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    socket.emit('video-rtc-answer', { toUserId: targetUserId, answer: { type: answer.type, sdp: answer.sdp } });
+  } catch (error) {
+    console.error('Error handling video offer:', error);
+    addMessage('System', 'Error answering video call', 'system');
+  }
+}
+
+export async function handleIncomingVideoAnswer(answer) {
+  if (!peerConnection) return;
+  try {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+  } catch (error) {
+    console.error('Error setting video answer:', error);
+  }
+}
+
+export async function addVideoIceCandidate(candidate) {
+  if (!peerConnection) return;
+  try {
+    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+  } catch (error) {
+    console.error('Error adding video ICE candidate:', error);
+  }
+}
 
 // Start webcam
 export async function startWebcam() {
