@@ -2,12 +2,37 @@
 // Key exchange happens when a friend request is accepted.
 // The server never sees plaintext — only encrypted ciphertext.
 
-const PRIVATE_KEY_STORAGE = 'ecdhPrivateKey';
-const PUBLIC_KEY_STORAGE = 'ecdhPublicKey';
+let currentUserId = null;
 
-// Generate an ECDH P-256 key pair on first use, or load the existing one.
-export async function initECDHKeyPair() {
-  if (localStorage.getItem(PRIVATE_KEY_STORAGE) && localStorage.getItem(PUBLIC_KEY_STORAGE)) {
+function privateKeyStorage() { return `ecdhPrivateKey_${currentUserId}`; }
+function publicKeyStorage()  { return `ecdhPublicKey_${currentUserId}`; }
+function encKeyStorage(friendId) { return `encKey_${currentUserId}_${friendId}`; }
+
+// Generate an ECDH P-256 key pair on first use for this user, or load the existing one.
+// Migrates legacy global keys (pre-user-scoped) to the namespaced format on first run.
+export async function initECDHKeyPair(userId) {
+  currentUserId = userId;
+
+  // One-time migration: move old global keys into user-scoped keys
+  const legacyPrivate = localStorage.getItem('ecdhPrivateKey');
+  const legacyPublic  = localStorage.getItem('ecdhPublicKey');
+  if (legacyPrivate && legacyPublic && !localStorage.getItem(privateKeyStorage())) {
+    localStorage.setItem(privateKeyStorage(), legacyPrivate);
+    localStorage.setItem(publicKeyStorage(),  legacyPublic);
+    localStorage.removeItem('ecdhPrivateKey');
+    localStorage.removeItem('ecdhPublicKey');
+
+    // Migrate any derived friend keys: encKey_<friendId> → encKey_<userId>_<friendId>
+    for (const key of Object.keys(localStorage)) {
+      const match = key.match(/^encKey_(\d+)$/);
+      if (match) {
+        localStorage.setItem(`encKey_${userId}_${match[1]}`, localStorage.getItem(key));
+        localStorage.removeItem(key);
+      }
+    }
+  }
+
+  if (localStorage.getItem(privateKeyStorage()) && localStorage.getItem(publicKeyStorage())) {
     return;
   }
   const keyPair = await crypto.subtle.generateKey(
@@ -17,13 +42,13 @@ export async function initECDHKeyPair() {
   );
   const privateJWK = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
   const publicJWK = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
-  localStorage.setItem(PRIVATE_KEY_STORAGE, JSON.stringify(privateJWK));
-  localStorage.setItem(PUBLIC_KEY_STORAGE, JSON.stringify(publicJWK));
+  localStorage.setItem(privateKeyStorage(), JSON.stringify(privateJWK));
+  localStorage.setItem(publicKeyStorage(), JSON.stringify(publicJWK));
 }
 
 // Returns the user's ECDH public key as a JWK object (safe to send to server/peer).
 export async function getMyPublicKeyJWK() {
-  const stored = localStorage.getItem(PUBLIC_KEY_STORAGE);
+  const stored = localStorage.getItem(publicKeyStorage());
   if (!stored) throw new Error('[Crypto] No ECDH public key found. Call initECDHKeyPair() first.');
   return JSON.parse(stored);
 }
@@ -31,7 +56,7 @@ export async function getMyPublicKeyJWK() {
 // Perform ECDH with the friend's public key and store the resulting AES-GCM key.
 // Both peers derive the same key independently — the server is never involved.
 export async function deriveAndStoreSharedKey(friendId, theirPublicKeyJWK) {
-  const myPrivateJWK = JSON.parse(localStorage.getItem(PRIVATE_KEY_STORAGE));
+  const myPrivateJWK = JSON.parse(localStorage.getItem(privateKeyStorage()));
   if (!myPrivateJWK) throw new Error('[Crypto] No ECDH private key found');
 
   const myPrivateKey = await crypto.subtle.importKey(
@@ -54,15 +79,15 @@ export async function deriveAndStoreSharedKey(friendId, theirPublicKeyJWK) {
     ['encrypt', 'decrypt']
   );
   const aesJWK = await crypto.subtle.exportKey('jwk', aesKey);
-  localStorage.setItem(`encKey_${friendId}`, JSON.stringify(aesJWK));
+  localStorage.setItem(encKeyStorage(friendId), JSON.stringify(aesJWK));
 }
 
 export function hasKeyForFriend(friendId) {
-  return localStorage.getItem(`encKey_${friendId}`) !== null;
+  return localStorage.getItem(encKeyStorage(friendId)) !== null;
 }
 
 async function getKeyForFriend(friendId) {
-  const stored = localStorage.getItem(`encKey_${friendId}`);
+  const stored = localStorage.getItem(encKeyStorage(friendId));
   if (!stored) return null;
   return crypto.subtle.importKey(
     'jwk', JSON.parse(stored),

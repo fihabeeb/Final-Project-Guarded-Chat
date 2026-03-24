@@ -3,6 +3,7 @@ import { addMessage } from './chatHistoryHandler.js';
 import { loadFriendsList } from './sidebar.js';
 import { setCurrentUserId } from './friendRequests.js';
 import { setChatManager } from './chatManager.js';
+import { initECDHKeyPair } from './encryption.js';
 
 const loginPage = document.getElementById('loginPage');
 const appContainer = document.getElementById('appContainer');
@@ -123,6 +124,7 @@ function onLoginSuccess(user) {
     setCurrentUserId(user.id);
     setChatManager(user.id);
     loadFriendsList(user.id);
+    initECDHKeyPair(user.id).catch(e => console.error('[Encryption] Key init failed:', e));
 }
 
 export function logout() {

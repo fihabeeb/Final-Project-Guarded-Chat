@@ -12,11 +12,6 @@ import { addMessage } from './chatHistoryHandler.js';
 import { userDiscoveryListeners } from './userDiscovery.js';
 import { friendRequestsListeners } from './friendRequests.js';
 import { sendMessage, setupMessageListeners, emitTyping, emitStopTyping } from './chatManager.js';
-import { initECDHKeyPair } from './encryption.js';
-
-// Initialise ECDH key pair on startup (generates once, reuses on subsequent loads)
-initECDHKeyPair().catch(e => console.error('[Encryption] Key init failed:', e));
-
 // DOM Elements
 const form = document.getElementById("form");
 const input = document.getElementById("input");
