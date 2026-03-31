@@ -257,6 +257,38 @@
           <!-- Account -->
           <div class="settings-section">
             <h3 class="settings-section-title">Account</h3>
+
+            <!-- Change display name -->
+            <div class="settings-item settings-item-clickable" id="changeNameToggle">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Change display name</span>
+                <span class="settings-item-desc">Update the name others see</span>
+              </div>
+            </div>
+            <div class="settings-expand" id="changeNameForm">
+              <input type="text" class="settings-input" id="changeNameInput" placeholder="New display name" maxlength="100">
+              <div class="settings-expand-actions">
+                <button class="settings-btn settings-btn-primary" id="changeNameSubmit">Save</button>
+                <span class="settings-feedback" id="changeNameFeedback"></span>
+              </div>
+            </div>
+
+            <!-- Change password -->
+            <div class="settings-item settings-item-clickable" id="changePasswordToggle">
+              <div class="settings-item-info">
+                <span class="settings-item-label">Change password</span>
+                <span class="settings-item-desc">Update your account password</span>
+              </div>
+            </div>
+            <div class="settings-expand" id="changePasswordForm">
+              <input type="password" class="settings-input" id="currentPasswordInput" placeholder="Current password">
+              <input type="password" class="settings-input" id="newPasswordInput" placeholder="New password (min 6 chars)">
+              <div class="settings-expand-actions">
+                <button class="settings-btn settings-btn-primary" id="changePasswordSubmit">Save</button>
+                <span class="settings-feedback" id="changePasswordFeedback"></span>
+              </div>
+            </div>
+
             <div class="settings-item settings-item-clickable" id="logoutButton">
               <div class="settings-item-info">
                 <span class="settings-item-label settings-item-danger">Log out</span>

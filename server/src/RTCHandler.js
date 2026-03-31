@@ -1,4 +1,4 @@
-import { authenticateUser, registerUser, searchUsers, getUsersByIds, getUserById } from "./auth.js";
+import { authenticateUser, registerUser, searchUsers, getUsersByIds, getUserById, updateUserName, updatePassword } from "./auth.js";
 import { io } from "./io.js";
 import { getFriendsList, addFriend, removeFriend, areFriends } from "./friendsList.js";
 import {
@@ -335,7 +335,7 @@ export function PeerChatting(socket) {
         }
     });
 
-    // WebRTC signaling handlers - now supports multiple concurrent connections
+    // WebRTC signaling handlers
     socket.on("webrtc-offer", (data) => {
         const { callId, offer, toUserId } = data;
         console.log("Received WebRTC offer for call:", callId, "to user:", toUserId);
@@ -481,6 +481,18 @@ export function PeerChatting(socket) {
         if (isUserOnline(toUserId)) {
             io.to(getUserSocketId(toUserId)).emit("video-rtc-ice", { candidate });
         }
+    });
+
+    socket.on('change-name', async (data) => {
+        const { userId, newName } = data;
+        const result = await updateUserName(userId, newName);
+        socket.emit('name-changed', result);
+    });
+
+    socket.on('change-password', async (data) => {
+        const { userId, currentPassword, newPassword } = data;
+        const result = await updatePassword(userId, currentPassword, newPassword);
+        socket.emit('password-changed', result);
     });
 
 }

@@ -1,4 +1,5 @@
 import { logout } from './login.js';
+import { socket } from './socketIO.js';
 
 const settingsModal = document.getElementById('settingsModal');
 const settingsButton = document.getElementById('settingsButton');
@@ -91,6 +92,80 @@ export function settingsListeners() {
         logout();
     };
 
+    // ── Change name ───────────────────────────────────────────────────────────
+    const changeNameToggle = document.getElementById('changeNameToggle');
+    const changeNameForm = document.getElementById('changeNameForm');
+    const changeNameInput = document.getElementById('changeNameInput');
+    const changeNameSubmit = document.getElementById('changeNameSubmit');
+    const changeNameFeedback = document.getElementById('changeNameFeedback');
+
+    changeNameToggle.onclick = () => {
+        changeNameForm.classList.toggle('open');
+        changePasswordForm.classList.remove('open');
+        if (changeNameForm.classList.contains('open')) changeNameInput.focus();
+    };
+
+    changeNameSubmit.onclick = () => {
+        const newName = changeNameInput.value.trim();
+        if (!newName) {
+            showFeedback(changeNameFeedback, 'Name cannot be empty', true);
+            return;
+        }
+        const userId = localStorage.getItem('userId');
+        socket.emit('change-name', { userId, newName });
+    };
+
+    socket.on('name-changed', (result) => {
+        if (result.success) {
+            document.getElementById('settingsUsername').textContent = result.name;
+            document.getElementById('settingsAvatar').textContent = result.name[0].toUpperCase();
+            changeNameInput.value = '';
+            changeNameForm.classList.remove('open');
+            showFeedback(changeNameFeedback, 'Name updated', false);
+        } else {
+            showFeedback(changeNameFeedback, result.message, true);
+        }
+    });
+
+    // ── Change password ───────────────────────────────────────────────────────
+    const changePasswordToggle = document.getElementById('changePasswordToggle');
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    const currentPasswordInput = document.getElementById('currentPasswordInput');
+    const newPasswordInput = document.getElementById('newPasswordInput');
+    const changePasswordSubmit = document.getElementById('changePasswordSubmit');
+    const changePasswordFeedback = document.getElementById('changePasswordFeedback');
+
+    changePasswordToggle.onclick = () => {
+        changePasswordForm.classList.toggle('open');
+        changeNameForm.classList.remove('open');
+        if (changePasswordForm.classList.contains('open')) currentPasswordInput.focus();
+    };
+
+    changePasswordSubmit.onclick = () => {
+        const currentPassword = currentPasswordInput.value;
+        const newPassword = newPasswordInput.value;
+        if (!currentPassword || !newPassword) {
+            showFeedback(changePasswordFeedback, 'Please fill in both fields', true);
+            return;
+        }
+        const userId = localStorage.getItem('userId');
+        socket.emit('change-password', { userId, currentPassword, newPassword });
+    };
+
+    socket.on('password-changed', (result) => {
+        if (result.success) {
+            localStorage.setItem('password', newPasswordInput.value);
+            currentPasswordInput.value = '';
+            newPasswordInput.value = '';
+            changePasswordForm.classList.remove('open');
+            showFeedback(changePasswordFeedback, 'Password updated', false);
+        } else {
+            showFeedback(changePasswordFeedback, result.message, true);
+        }
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Handle any setting change
     settingsModal.addEventListener('change', (e) => {
         const key = e.target.dataset.setting;
@@ -106,4 +181,10 @@ export function settingsListeners() {
         saveSettings(current);
         applySettings(current);
     });
+}
+
+function showFeedback(el, message, isError) {
+    el.textContent = message;
+    el.className = 'settings-feedback' + (isError ? ' error' : '');
+    setTimeout(() => { el.textContent = ''; el.className = 'settings-feedback'; }, 3000);
 }

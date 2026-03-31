@@ -65,6 +65,30 @@ export function getUsersByIds(userIds) {
   return userIds.map(id => getUserById(id)).filter(Boolean);
 }
 
+export async function updateUserName(userId, newName) {
+  if (!newName || newName.trim().length === 0) {
+    return { success: false, message: 'Name cannot be empty' };
+  }
+  const trimmed = newName.trim();
+  await pool.query('UPDATE users SET name = $1 WHERE id = $2', [trimmed, userId]);
+  const cached = usersCache.get(userId);
+  if (cached) cached.name = trimmed;
+  return { success: true, name: trimmed };
+}
+
+export async function updatePassword(userId, currentPassword, newPassword) {
+  if (!newPassword || newPassword.length < 6) {
+    return { success: false, message: 'New password must be at least 6 characters' };
+  }
+  const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+  if (rows.length === 0) return { success: false, message: 'User not found' };
+  const match = await bcrypt.compare(currentPassword, rows[0].password_hash);
+  if (!match) return { success: false, message: 'Current password is incorrect' };
+  const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId]);
+  return { success: true };
+}
+
 export async function searchUsers(query) {
   if (!query || query.trim().length === 0) return [];
   const pattern = `%${query.toLowerCase().trim()}%`;
