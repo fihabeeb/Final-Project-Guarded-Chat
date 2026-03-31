@@ -11,6 +11,7 @@ A real-time, end-to-end encrypted chat application built with WebRTC, Socket.io,
 - **Offline delivery** — messages and key exchanges queued for offline users and delivered on next login
 - **Typing indicators & read receipts**
 - **Persistent chat history** — stored locally in the browser
+- **Account management** — change display name (propagates to online friends in real time) and change password
 - **Settings** — theme (dark/light), font size, notifications, sound, read receipts
 
 ## Tech Stack
@@ -92,13 +93,13 @@ Client runs on **http://localhost:5173**, server on **http://localhost:1111**.
 │   │   ├── friendRequests.js     # Friend request UI and key exchange
 │   │   ├── userDiscovery.js      # User search
 │   │   ├── login.js              # Auth UI
-│   │   └── appSettings.js        # User preferences
+│   │   └── appSettings.js        # User preferences and account management
 │   └── index.html
 ├── server/
 │   └── src/
 │       ├── index.js              # Entry point
 │       ├── RTCHandler.js         # All socket event handlers
-│       ├── auth.js               # Registration, login, bcrypt
+│       ├── auth.js               # Registration, login, bcrypt, name/password updates
 │       ├── friendsList.js        # In-memory friends map
 │       ├── friendRequests.js     # DB-backed friend requests + key exchange
 │       ├── messageQueue.js       # Offline message queue
