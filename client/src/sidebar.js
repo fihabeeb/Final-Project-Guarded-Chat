@@ -17,6 +17,33 @@ export function sidebarListeners() {
         }
     });
 
+    socket.on('friend-name-updated', ({ userId, newName }) => {
+        const friend = friendsList.find(f => String(f.id) === String(userId));
+        if (!friend) return;
+
+        friend.name = newName;
+
+        // Update sidebar item
+        const item = document.querySelector(`.contact-item[data-contact-id="${userId}"]`);
+        if (item) {
+            item.dataset.contact = newName;
+            item.querySelector('.contact-avatar').textContent = newName[0].toUpperCase();
+            item.querySelector('.contact-name').textContent = newName;
+        }
+
+        // Update chat header if this friend's chat is currently open
+        const headerName = document.querySelector('.chat-info h3');
+        const headerAvatar = document.querySelector('.chat-avatar');
+        if (headerName && item && item.classList.contains('active')) {
+            headerName.textContent = newName;
+            headerAvatar.textContent = newName[0].toUpperCase();
+        }
+
+        if (currentUserId) {
+            localStorage.setItem(`friends_${currentUserId}`, JSON.stringify(friendsList));
+        }
+    });
+
     // Handle contact clicks
     sidebar.addEventListener('click', (e) => {
         const item = e.target.closest('.contact-item');

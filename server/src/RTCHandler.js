@@ -487,6 +487,18 @@ export function PeerChatting(socket) {
         const { userId, newName } = data;
         const result = await updateUserName(userId, newName);
         socket.emit('name-changed', result);
+
+        if (result.success) {
+            const friendIds = getFriendsList(userId);
+            friendIds.forEach(friendId => {
+                if (isUserOnline(friendId)) {
+                    io.to(getUserSocketId(friendId)).emit('friend-name-updated', {
+                        userId,
+                        newName: result.name
+                    });
+                }
+            });
+        }
     });
 
     socket.on('change-password', async (data) => {
